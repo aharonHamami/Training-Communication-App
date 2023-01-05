@@ -1,0 +1,29 @@
+.mItem {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 100%;
+}
+
+.mItem > button {
+    background: none;
+    border: none;
+    border-radius: 5px;
+    height: 75%;
+    font-size: 17px;
+    color: #c4c4c4;
+}
+
+.mItem > button:hover {
+    background-color: rgb(255,255,255,0.1);
+}
+
+.mItem .dropdownDiv {
+    display: none;
+    position: absolute;
+    top: 100%;
+}
+
+.mItem:hover .dropdownDiv {
+    display: block;
+}

@@ -1,0 +1,20 @@
+.dropdown {
+    display: flex;
+    flex-direction: column;
+    border-radius: 0 0 5px 5px;
+    background-color: #303031;
+}
+
+.dropdown > button {
+    width: 100%;
+    background: none;
+    border: none;
+    text-align: left;
+    color: #c4c4c4;
+    padding: 10px 15px;
+    font-size: 18px;
+}
+
+.dropdown > button:hover {
+    background-color: rgb(255,255,255,0.1);
+}

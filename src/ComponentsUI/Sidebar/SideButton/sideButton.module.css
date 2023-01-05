@@ -1,0 +1,22 @@
+.sideButton {
+    background-color: rgba(231, 233, 235, 0.9);
+    display: flex;
+    flex-direction: row;
+    border-top: 1px solid black;
+    border-bottom: 1px solid black;
+    padding: 0 7px;
+    width: 100%;
+    height: 30px;
+    gap: 5px;
+    box-sizing: border-box;
+    align-items: center;
+}
+
+.sideButton:hover {
+    background-color: rgb(204, 204, 204, 0.9);
+}
+
+.sideButton > div {
+    display: flex;
+    flex-direction: row;
+}

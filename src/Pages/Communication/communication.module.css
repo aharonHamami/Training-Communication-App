@@ -1,0 +1,47 @@
+.communication {
+    /* background-color: aqua; */
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.communication .sideArea {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid black;
+    width: 25%;
+    height: 100%;
+    box-sizing: border-box;
+    background-color: #a0badd;
+}
+
+.communication .mainArea {
+    background-color: #f9f9f9;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    height: 100%;
+    box-sizing: border-box;
+}
+
+.communication .mainArea .infoPanel {
+    /* background-color: beige; */
+    width: 100%;
+    flex-grow: 1;
+    box-sizing: border-box;
+}
+
+.communication .mainArea .controlPanel {
+    /* background-color: brown; */
+    width: 100%;
+    height: 33%;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    box-sizing: border-box;
+}

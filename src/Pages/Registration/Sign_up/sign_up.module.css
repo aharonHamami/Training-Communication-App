@@ -1,0 +1,18 @@
+.registerPage {
+    display: flex;
+    height: 100vh;
+    width: 100%;
+    background-color: #dfe9f6;
+    box-sizing: border-box;
+}
+
+.registerPage .logInForm {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    align-items: left;
+    gap: 15px;
+    padding-left: 20px;
+    padding-right: 20px;
+    box-sizing: border-box;
+}

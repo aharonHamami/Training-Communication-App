@@ -1,0 +1,11 @@
+.barTitle {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
+    height: 31px;
+    padding: 0 6px;
+    font-weight: bold;
+    box-sizing: border-box;
+    background-color: #d6d7d9;
+}
