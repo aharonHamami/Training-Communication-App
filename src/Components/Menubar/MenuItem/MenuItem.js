@@ -9,7 +9,7 @@ const item = (props) => {
                 {props.label}
             </button>
             <div className={classes.dropdownDiv}>
-                <Dropdown />
+                <Dropdown options={props.options} />
             </div>
         </div>
     );

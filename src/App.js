@@ -2,16 +2,17 @@ import './App.css';
 
 import { Routes, Route } from 'react-router-dom';
 
-import Communication from './Pages/Communication/Communication';
-import Edit from './Pages/Edit/Edit';
-import SignUp from './Pages/Registration/Sign_up/SignUp';
-import LogIn from "./Pages/Registration/Log_In/LogIn";
+import HomePage from './Pages/HomePage/HomePage';
+import Communication from './Pages/Communication/CommunicationPage';
+import Edit from './Pages/Edit/EditPage';
+import SignUp from './Pages/Registration/Sign_up/SignUpPage';
+import LogIn from "./Pages/Registration/Log_In/LogInPage";
 
 function App() {
   return (
     <div className="App">
       <Routes>
-        <Route path='/' element={[<h1>home page</h1>, <h2>available pages:</h2>, <p>/sign-up</p>, <p>/log-in</p>, <p>/communication</p>, <p>/edit</p>]} />
+        <Route path='/' element={<HomePage />} />
         <Route path='/sign-up' element={<SignUp />} />
         <Route path='/log-in' element={<LogIn />} />
         <Route path='/communication' element={<Communication />} />

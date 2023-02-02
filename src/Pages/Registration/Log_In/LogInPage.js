@@ -1,31 +1,21 @@
-import classes from "./sign_up.module.css";
+import classes from "./log_in.module.css";
 
 import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
+import { Link } from 'react-router-dom';
 import { useState } from "react";
 import { useDispatch, useSelector } from 'react-redux';
 import { Navigate } from 'react-router-dom';
 
 import InputList from "../../../Components/InputList/InputList";
 import InfoCard from "../../../ComponentsUI/InfoCard/InfoCard";
-import axiosServer from '../../../axios/axiosServer';
+import axiosServer from "../../../axios/axiosServer";
 import { connect } from '../../../store/slices/authSlice';
 
-const Registration = () => {
+const Registration = (props) => {
     
     const [inputArray, setInputarray] = useState([
-        {
-            type: 'text-field',
-            name: 'name',
-            label: 'name',
-            value: '',
-            validation: {
-                isValid: true,
-                pattern: /.{1,}/, // name pattern
-                errorMessage: 'your must have a name'
-            }
-        },
         {
             type: 'text-field',
             name: 'email',
@@ -44,8 +34,8 @@ const Registration = () => {
             value: '',
             validation: {
                 isValid: true,
-                pattern: /^[a-zA-Z0-9]{5,15}$/,
-                errorMessage: 'password must have the letters: a-z,A-Z,1-9 (5-15 characters)'
+                pattern: /^.{5,15}$/, // min-max pattern
+                errorMessage: 'password must be between 5-15 characters long'
             }
         }
     ]);
@@ -98,10 +88,10 @@ const Registration = () => {
         // sending request
         console.log("sending :", sendInfo);
         setIsLoading(true);
-        axiosServer.post('/users/sign-up', sendInfo)
+        axiosServer.post('/users/log-in', sendInfo)
             .then(response => {
                 console.log("server response: ", response);
-                dispatch(connect({name: sendInfo.name, userId: response.data.userId, token: response.data.token}));
+                dispatch(connect({name: response.data.name, userId: response.data.userId, token: response.data.token}));
                 setIsLoading(false);
             })
             .catch(error => {
@@ -120,23 +110,24 @@ const Registration = () => {
     }
     
     let content = null;
-    if(isLoading) {
+    if(isLoading){
         content = <CircularProgress />;
     }else {
         content = <>
             <form className={classes.logInForm}>
-                <h2>sign up</h2>
+                <h2>log in</h2>
                 <InputList inputArray={inputArray} setValue={changeValue} />
                 <p style={{color: 'red'}}>{errorMessage}</p>
             </form>
             <Box onSubmit={formSubmitted} sx={{marginTop: '15px'}}>
-                <Button variant='contained' color='success' onClick={formSubmitted}>sign up</Button>
+                <Button variant='contained' color='success' onClick={formSubmitted}>log in</Button>
             </Box>
-        </>;
+            <p>don't have a user yet? <Link to='/sign-up' style={{textDecoration: 'none', color: 'blue'}}>sign up</Link></p>
+        </>
     }
     
     return <>
-        {authState.userId !== null ? <Navigate to='/communication' /> : null}
+        {authState.userId ? <Navigate to='/communication' replace/> : null}
         <div className={classes.registerPage}>
             <div style={{width: '100%'}}>
                 <InfoCard>
