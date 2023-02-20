@@ -5,12 +5,12 @@ import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import { Link } from 'react-router-dom';
 import { useState } from "react";
-import { useDispatch, useSelector } from 'react-redux';
-import { Navigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 
 import InputList from "../../../Components/InputList/InputList";
 import InfoCard from "../../../ComponentsUI/InfoCard/InfoCard";
-import axiosServer from "../../../axios/axiosServer";
+import axiosServer from "../../../clients/axios/axiosClient";
 import { connect } from '../../../store/slices/authSlice';
 
 const Registration = (props) => {
@@ -44,7 +44,8 @@ const Registration = (props) => {
     const [isLoading, setIsLoading] = useState(false);
     
     const dispatch = useDispatch();
-    const authState = useSelector(state => state.auth);
+    
+    const navigate = useNavigate();
     
     const changeValue = (index, value) => {
         const valueValidation = inputArray[index].validation.pattern.test(value);
@@ -93,6 +94,7 @@ const Registration = (props) => {
                 console.log("server response: ", response);
                 dispatch(connect({name: response.data.name, userId: response.data.userId, token: response.data.token}));
                 setIsLoading(false);
+                navigate('/communication', {replace: true});
             })
             .catch(error => {
                 console.log("server error: ", error);
@@ -127,7 +129,6 @@ const Registration = (props) => {
     }
     
     return <>
-        {authState.userId ? <Navigate to='/communication' replace/> : null}
         <div className={classes.registerPage}>
             <div style={{width: '100%'}}>
                 <InfoCard>

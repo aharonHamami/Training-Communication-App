@@ -1,8 +1,8 @@
 import { io } from 'socket.io-client';
 
-export class RtcClient {
+export default class RtcClient {
     constructor(servers) {
-        this.listeners = {}; // 'stream', 'new-users', 'user-left'
+        this.listeners = {}; // events: 'stream', 'new-users', 'user-left'
         
         this.localStream = null;
         this.usersPeerMap = []; // [{id: 'userId', peerConnection: 'rtcPeerConnection', stream: 'stream'}]

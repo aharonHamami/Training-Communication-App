@@ -1,159 +1,272 @@
 import classes from './edit.module.css';
 
-import Slider from '@mui/material/Slider';
-import Box from '@mui/material/Box';
-import { useState } from 'react';
+import { CircularProgress } from '@mui/material';
+import { useState, useEffect, useRef } from 'react';
 
 import Menubar from '../../Components/Menubar/Menubar';
 import SidePanel from "../../ComponentsUI/Sidebar/SidePanel";
-import SideButton from '../../ComponentsUI/Sidebar/SideButton/SideButton';
-import axiosServer from '../../axios/axiosServer';
+import RecordButtons from './Buttons/RecordButtons';
+import axiosServer from '../../clients/axios/axiosClient';
+import AudioControls from './UI/AudioControls/AudioControls';
+import AudiooWaveform from './UI/AudioWaveform/AudioWaveform';
 
-const menuItems = [
-    {
-        label: "File",
-        options: [
-            {
-                title: 'import file',
-                action: null
-            },
-            {
-                title: 'upload file',
-                action: () => {
-                    // console.log('uploading to the server...');
-                    // axiosServer.post('/editing/upload-file-test')
-                    //     .then(response => {
-                    //         if(response.message) {
-                    //             console.log('response: ', response.message);
-                    //         }else {
-                    //             console.log('response: ', response);
-                    //         }
-                    //     })
-                    
-                    var input = document.createElement('input');
-                    input.type = 'file';
-                    
-                    // waiting for a file
-                    input.onchange = event => {
-                        const file = event.target.files[0]; // taking the file
-                        
-                        console.log(file);
-                        
-                        // we parse the file into a FormData format:
-                        const formData = new FormData();
-                        formData.set('myFile', file);
-                        
-                        // sending the file as format data
-                        axiosServer.post('/editing/upload-file', formData, /*{onUploadProgress: }*/)
-                            .then(response => {
-                                console.log(response);
-                            });
-                    }
-                    
-                    input.click();
-                }
-            },
-        ]
-    },
-    {
-        label: "View",
-        options: [
-            {
-                title: 'dark/light mode',
-                action: null
-            }
-        ]
-    },
-    {
-        label: "Help",
-        options: [
-            {
-                title: 'how to use?',
-                action: null
-            },
-            {
-                title: 'about me',
-                action: null
-            },
-        ]
+function isPlaying(audio) {
+    if(audio && !audio.paused && audio.currentTime > 0) {
+        return true;
     }
-];
+    return false;
+}
+
+// delete/change later
+let audioCtx;
 
 const Edit = () => {
-    const [audioList] = useState([
-        {name: 'audio1.mp3'},
-        {name: 'audio2.mp3'},
-        {name: 'audio3.mp3'},
-        {name: 'audio4.mp3'},
-        {name: 'audio5.mp3'}
-    ]);
-    const [sliderValue, setSliderValue] = useState(20);
-    const maxSliderValue = 120;
+    const [recordsInfo, setRecordsInfo] = useState(null); // [{name: 'name', recordName: 'record.mp3', audio: audioObj, waveform: waveformData}]
+    const [recordIndex, setRecordIndex] = useState(-1);
+    const [sliderValue, setSliderValue] = useState(0);
+    const [maxValue, setMaxValue] = useState(100);
     
-    const audioButtons = audioList.map((info, index) => (
-        <SideButton key={'audio_'+index}>
-            <p>{info.name}</p>
-        </SideButton>
-    ));
+    // to avoid problems and ensure this object is never changed due to React's re-renders
+    const currentAudioRef = useRef(null);
     
-    function parseToTime(totalMinutes){
-        const hours = Math.floor(totalMinutes / 60);
-        const minutes = totalMinutes - hours*60;
-        return `${hours}:${minutes < 10 ? `0${minutes}` : minutes}`;
+    function addNewRecords(recordNames) {
+        const newRecordsInfo = recordNames.map(record => ({
+            name: record,
+            recordName: record,
+            audio: null,
+            waveform: null
+        }));
+        setRecordsInfo(state => {
+            if(!state || !Array.isArray(state)) {
+                return newRecordsInfo
+            }
+            return [...state, ...newRecordsInfo];
+        });
+    }
+    
+    function updateRedord(index, info) {
+        setRecordsInfo(state => {
+            const newRecordsInfo = [...state];
+            newRecordsInfo[index] = {...newRecordsInfo[index], ...info};
+            return newRecordsInfo;
+        });
+    }
+    
+    // to get the records from the server
+    useEffect(() => {
+        console.log('getting recordings from the server...');
+        axiosServer.get('/editing/records')
+            .then(response => {
+                console.log('server response (records): ', response);
+                
+                const recordsList = response.data.recordNames;
+                if(Array.isArray(recordsList)) {
+                    addNewRecords(recordsList);
+                }else {
+                    console.log("Error: didn't get a proper response from the server");
+                }
+            })
+            .catch(error => {
+                console.log("Error: couldn't get record names from server: \n", error);
+            });
+    }, []);
+    
+    // to handle the audio selected
+    useEffect(() => {
+        if(recordIndex >= 0 && recordsInfo[recordIndex].audio) {
+            const currentRecordInfo = recordsInfo[recordIndex];
+            currentAudioRef.current = currentRecordInfo.audio;
+            
+            currentAudioRef.current.onloadedmetadata = () => {
+                // console.log('duration: ', currentAudioRef.current.duration);
+                setMaxValue(currentAudioRef.current.duration);
+            }
+            
+            currentAudioRef.current.ontimeupdate = () => {
+                setSliderValue(currentAudioRef.current.currentTime);
+            }
+        }
+    }, [recordsInfo, recordIndex]);
+    
+    function loadAudio(path, index) {
+        axiosServer.get(path, {responseType: 'arraybuffer'})
+            .then(response => {
+                const buffer = response.data;
+                
+                if(!audioCtx) {
+                    // to solve chrome problem of amking an audioContext before user interaction
+                    audioCtx = new AudioContext();
+                }
+                
+                const blob = new Blob([buffer], { type: 'audio/ogg' });
+                const url = URL.createObjectURL(blob);
+                // window.open(url);
+                const recordAudio = new Audio(url);
+                updateRedord(index, {audio: recordAudio});
+                
+                // need to be called before making a blob from the arraBuffer
+                audioCtx.decodeAudioData(buffer, audioBuffer => {
+                    const channelData = audioBuffer.getChannelData(0);
+                    updateRedord(index, {waveform: channelData});
+                },
+                e => {
+                    console.log('Error decoding audio data', e);
+                });
+            })
+            .catch(error => {
+                console.log("couldn't handle response: ", error);
+            })
+    }
+    
+    const handleRecordPressed = (index) => {
+        const recordInfo = recordsInfo[index];
+        console.log('record pressed: ', recordInfo.name);
+        
+        if(currentAudioRef.current) {
+            currentAudioRef.current.pause();
+        }
+        
+        if(recordInfo.audio) {
+            setRecordIndex(index);
+            setMaxValue(recordInfo.audio.duration);
+            setSliderValue(recordInfo.audio.currentTime);
+        }else {
+            console.log('getting record from the server...');
+            const path = '/editing/records/' + recordInfo.recordName;
+            
+            // delete one of them:
+            loadAudio(path, index);
+            setRecordIndex(index);
+            setSliderValue(0);
+        }
+        
+    };
+    
+    const handlePlayPressed = (event) => {
+        if(isPlaying(currentAudioRef.current)) {
+            currentAudioRef.current.pause();
+        }else {
+            currentAudioRef.current.play();
+        }
+    };
+    
+    const handleSliderChanged = (value) => {
+        currentAudioRef.current.currentTime = value;
+        // setSliderValue(value);
+    }
+    
+    let recordButtons = <CircularProgress />;
+    if(recordsInfo) {
+        recordButtons = <RecordButtons recordsInfo={recordsInfo} onPress={handleRecordPressed} />;
+    }
+    
+    const menuItems = [
+        {
+            label: "File",
+            options: [
+                {
+                    title: 'import file',
+                    action: null
+                },
+                {
+                    title: 'upload files',
+                    action: () => {
+                        var input = document.createElement('input');
+                        input.type = 'file';
+                        input.multiple = true; // allow multiple file choices
+                        
+                        // waiting for a file
+                        input.onchange = event => {
+                            const files = [...event.target.files]; // taking the files
+                            
+                            // console.log(files);
+                            
+                            // we parse the files into a FormData format:
+                            const formData = new FormData();
+                            files.forEach(file => {
+                                formData.append('audio', file);
+                            });
+                            
+                            console.log('sending:');
+                            for(const value of formData.values()) {
+                                console.log(value);
+                            }
+                            
+                            // sending the files as form data
+                            axiosServer.post('/editing/records/upload-file', formData, /*{onUploadProgress: }*/)
+                                .then(response => {
+                                    console.log('server response: ', response);
+                                    
+                                    const newRecordNames = response.data.files.map(file => file.name);
+                                    addNewRecords(newRecordNames);
+                                });
+                        }
+                        
+                        input.click(); // to emit the onchange event
+                    }
+                },
+            ]
+        },
+        {
+            label: "View",
+            options: [
+                {
+                    title: 'dark/light mode',
+                    action: null
+                }
+            ]
+        },
+        {
+            label: "Help",
+            options: [
+                {
+                    title: 'how to use?',
+                    action: null
+                },
+                {
+                    title: 'about me',
+                    action: null
+                },
+            ]
+        }
+    ];
+    
+    let content = <h3>Choose a file</h3>
+    if(recordIndex >= 0) {
+        content = <>
+            <h1>title/content</h1>
+            
+            <div className={classes.infoPanel}>
+                <AudiooWaveform audio={recordsInfo[recordIndex]} />
+            </div>
+            
+            
+            <AudioControls 
+                audio={currentAudioRef.current}
+                value={sliderValue}
+                duration={maxValue}
+                onPlay={event => handlePlayPressed(event)}
+                onChange={(value) => {handleSliderChanged(value)}} />
+                
+            <h2>{recordsInfo[recordIndex].name}</h2>
+            
+        </>;
     }
     
     return (
         <div className={classes.editPage}>
             <Menubar itemsInfo={menuItems} />
             <div className={classes.content}>
-                {/* side area */}
+                {/* side window */}
                 <div className={classes.sideArea}>
                     {/* loaded audio */}
                     <SidePanel title='audio'>
-                        {audioButtons}
+                        {recordButtons}
                     </SidePanel>
                 </div>
                 
-                {/* main area */}
-                <div className={classes.mainArea}>
-                    <div className={classes.infoPanel}>
-                        <h1>title/content</h1>
-                    </div>
-                    {/* slider */}
-                    <Slider
-                        color='primary'
-                        aria-label="time-indicator"
-                        value={sliderValue}
-                        sx={{width: '90%'}}
-                        min={0}
-                        step={1}
-                        max={maxSliderValue}
-                        onChange={(_, value) => setSliderValue(value)}
-                        />
-                    {/* time viewer */}
-                    <Box
-                        sx={{
-                            width: '90%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            mt: -2,
-                        }}
-                        >
-                        <p>{parseToTime(sliderValue)}</p>
-                        <p>-{parseToTime(maxSliderValue - sliderValue)}</p>
-                    </Box>
-                    <div style={{display: 'flex', flexDirection: 'row', gap: "10px"}}>
-                        <button>move slower</button>
-                        <button>move backwards</button>
-                        <button>start/stop</button>
-                        <button>move forewards</button>
-                        <button>move faster</button>
-                    </div>
-                    {/* pause, stop, skip, speed managing */}
-                    <h2>audio1.mp3</h2>
-                        
-                </div>
+                {/* main window */}
+                <div className={classes.mainArea}>{content}</div>
             </div>
         </div>
     );

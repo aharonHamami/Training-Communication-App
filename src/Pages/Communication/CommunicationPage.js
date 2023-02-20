@@ -3,10 +3,13 @@ import classes from './communication.module.css';
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { Navigate } from 'react-router-dom';
-import { RtcClient } from '../../clients/WebRtcClient/webrtcClient';
+import CircularProgress from '@mui/material/CircularProgress';
 
+import RtcClient from '../../clients/WebRtcClient/webrtcClient';
+import axiosServer from '../../clients/axios/axiosClient';
 import SidePanel from '../../ComponentsUI/Sidebar/SidePanel';
-import SideButton from '../../ComponentsUI/Sidebar/SideButton/SideButton';
+import UserButtons from './Buttons/UserButtons';
+import SoundButtons from './Buttons/SoundButtons';
 
 const servers = {
     signalingServer: "http://"+window.location.hostname+":3005",
@@ -19,28 +22,30 @@ const servers = {
     }
 };
 
-let localStream;
+const DEFAULT_MIC_ENABLE = false;
+
 let audioContext; // for mixing streams
-let contextDest;
+// context destinations:
+let noiseStreamtDest;   // for audio context - noise effects
+let localStreamDest;   // for audio context - noise effects + localStream
+let recordStreamDest;  // for audio context - noise effects + localStream + members stream
+
+let localStream;
 let mediaRecorder;
 
 const client = new RtcClient(servers);
 
 const Communication = () => {
     const [usersInfo, setUsersInfo] = useState([]); // [{id: 123, name: 'hello', signed: false}]
-    const [soundInfo] = useState([
-        {name: 'sound1.png'},
-        {name: 'sound2.png'},
-        {name: 'sound3.png'},
-        {name: 'sound4.png'}
-    ]);
-    const [micEnabled, setMicEnabled] = useState(false);
+    const [soundsInfo, setSoundsInfo] = useState(null); // [{name: 'name', soundName: 'sound.mp3', audio: audioObj, play: false}]
+    const [micEnabled, setMicEnabled] = useState(DEFAULT_MIC_ENABLE);
     const [recEnabled, setRecEnabled] = useState(false);
     const [availableUrl, setAvailableUrl] = useState(null);
     const [error, setError] = useState(null);
     
     const authState = useSelector(state => state.auth);
     
+    // to start communication
     useEffect(() => {
         if(!authState.userId) {
             return;
@@ -59,19 +64,37 @@ const Communication = () => {
         if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
             navigator.mediaDevices.getUserMedia({video: false, audio: true})
                 .then(stream => {
+                    setError(null);
+                    
                     localStream = stream;
                     
+                    localStream.getAudioTracks().forEach(track => {
+                        track.enabled = DEFAULT_MIC_ENABLE;
+                    });
+                    
                     audioContext = new AudioContext();
-                    contextDest = audioContext.createMediaStreamDestination();
-                    // console.log('merge local stream');
-                    audioContext.createMediaStreamSource(stream).connect(contextDest);
+                    
+                    // noise sound effects destination:
+                    noiseStreamtDest = audioContext.createMediaStreamDestination();
+                    const testAudio = new Audio();
+                    testAudio.srcObject = noiseStreamtDest.stream;
+                    testAudio.play();
+                    
+                    // local stream destination:
+                    localStreamDest = audioContext.createMediaStreamDestination();
+                    audioContext.createMediaStreamSource(stream).connect(localStreamDest);
+                    audioContext.createMediaStreamSource(noiseStreamtDest.stream).connect(localStreamDest);
+                    
+                    // record destination:
+                    recordStreamDest = audioContext.createMediaStreamDestination();
+                    audioContext.createMediaStreamSource(localStreamDest.stream).connect(recordStreamDest);
                     
                     console.log('trying to connect to the server...');
                     client.connect({
                         userId: myUserInfo.id,
                         userName: myUserInfo.name,
                         roomId: 'main'
-                    }, stream);
+                    }, localStreamDest.stream); // stream
                     
                     client.on('new-users', handleNewUsers);
                     client.on('stream', handleNewStream);
@@ -92,8 +115,45 @@ const Communication = () => {
             localStream.getTracks().forEach(track => {
                 track.stop();
             });
+            
+            // close all streams - including noise audio
+            audioContext.close();
         }
     }, [authState]);
+    
+    // to get additional sounds
+    useEffect(() => {
+        console.log('getting sound list from the server...');
+        axiosServer.get('/editing/sounds') // sound list
+            .then(response => {
+                console.log('server response (sound): ', response);
+                
+                const soundsList = response.data.soundNames;
+                if(Array.isArray(soundsList)) {
+                    const newSoundsInfo = soundsList.map(sound => ({
+                        name: sound,
+                        soundName: sound,
+                        audio: null,
+                        play: false,
+                    }));
+                    setSoundsInfo(newSoundsInfo);
+                }else {
+                    console.log("Error: didn't get a proper response from the server");
+                }
+            })
+            .catch(error => {
+                console.log('Server error: ', error);
+            });
+    }, []);
+    
+    // handle microphone
+    useEffect(() => {
+        if(localStream) {
+            localStream.getAudioTracks().forEach(track => {
+                track.enabled = micEnabled;
+            });
+        }
+    }, [micEnabled]);
     
     function handleNewUsers(users) {
         const usersArray = users.map(user => ({
@@ -109,11 +169,10 @@ const Communication = () => {
     }
     
     function handleNewStream(stream, userId) {
-        if(audioContext && contextDest) {
+        if(audioContext && recordStreamDest) {
             // connect the current stream into the audio context
-            // console.log('merge stream: ', stream.getTracks());
             try {
-                audioContext.createMediaStreamSource(stream).connect(contextDest);
+                audioContext.createMediaStreamSource(stream).connect(recordStreamDest);
             }catch(e) {
                 console.log('Audiocontext Error: ', e);
             }
@@ -121,7 +180,7 @@ const Communication = () => {
             console.log('<< Error: audioContext or destination is still not ready >>');
         }
         
-        // play his stream:
+        // play the other member stream:
         const audio = new Audio();
         audio.srcObject = stream;
         audio.play();
@@ -139,8 +198,8 @@ const Communication = () => {
     }
     
     // not supported yet
-    const handleRecordPressed = () => {
-        const mixedTracks = contextDest.stream.getTracks()[0];
+    const startRecording = () => {
+        const mixedTracks = recordStreamDest.stream.getTracks()[0];
         const stream = new MediaStream([mixedTracks]);
         mediaRecorder = new MediaRecorder(stream);
         
@@ -157,10 +216,12 @@ const Communication = () => {
         
         mediaRecorder.onstop = (e) => {
             console.log('recording stopped, chunks: ', chunks);
-            const blob = new Blob(chunks, {type: "audio/ogg; codecs=opus"}); // blob is a file type?
+            const blob = new Blob(chunks, {type: "audio/ogg; codecs=opus"}); // blob is a file type? // audio/mpeg
             chunks = []; // initialing the chunks again
             const audioURL = URL.createObjectURL(blob); // converting blob into URL
+            // console.log('record url: ', audioURL);
             setAvailableUrl(audioURL);
+            window.open(audioURL);
         }
     }
     const stopRecording = () => {
@@ -171,32 +232,65 @@ const Communication = () => {
         }
     }
     
-    // setting the microphone to muted until the user clicks to speak to everyone
-    if(localStream) {
-        localStream.getAudioTracks().forEach(track => {
-            track.enabled = micEnabled;
-        });
+    const playSound = soundInfo => {
+        console.log('play sound');
+        
+        // updating the 'play' field
+        const newSoundsInfo = [...soundsInfo];
+        const soundIndex = newSoundsInfo.findIndex(info => (info.soundName === soundInfo.soundName));
+        newSoundsInfo[soundIndex] = {
+            ...newSoundsInfo[soundIndex],
+            play: true
+        }
+        
+        if(soundInfo.audio) { // if the audio is already saved on the RAM
+            soundInfo.audio.play();
+        } else {
+            console.log('getting sound file from the server...');
+            const path = axiosServer.getUri() + '/editing/sounds/' + soundInfo.soundName;
+            const soundAudio = new Audio(path);
+            soundAudio.crossOrigin = "anonymous"; // preventing error of mutated audio (CORS access restrictions)
+            
+            try {
+                audioContext.createMediaElementSource(soundAudio).connect(noiseStreamtDest);
+            }catch (e) {
+                console.log(e);
+            }
+            
+            soundAudio.play();
+            
+            newSoundsInfo[soundIndex] = {
+                ...newSoundsInfo[soundIndex],
+                audio: soundAudio
+            }
+        }
+        
+        setSoundsInfo(newSoundsInfo);
+    }
+    const stopSound = soundInfo => {
+        console.log('stop sound');
+        
+        const audio = soundInfo.audio;
+        if(audio) {
+            audio.pause();
+            
+            // updating the 'play' field
+            const newSoundsInfo = [...soundsInfo];
+            const soundIndex = newSoundsInfo.findIndex(info => (info.soundName === soundInfo.soundName));
+            newSoundsInfo[soundIndex] = {
+                ...newSoundsInfo[soundIndex],
+                play: false
+            }
+            setSoundsInfo(newSoundsInfo);
+        }
     }
     
-    const usersButtons = usersInfo.map((info, index) => {
-        const signButton = (
-            <button style={{color: info.signed ? 'green' : 'red', background: 'none', border: 'none'}}>
-                ⬤
-            </button>
-        );
-        
-        return (
-            <SideButton key={'userB_'+index} start={signButton}>
-                <p>{info.name}</p>
-            </SideButton>
-        );
-    });
+    const usersButtons = <UserButtons usersInfo={usersInfo} />
     
-    const soundButtons = soundInfo.map((info, index) => (
-        <SideButton key={'soundB_'+index}>
-            <p>{info.name}</p>
-        </SideButton>
-    ));
+    let soundButtons = <CircularProgress />;
+    if(soundsInfo) {
+        soundButtons = <SoundButtons soundsInfo={soundsInfo} play={playSound} stop={stopSound} />;
+    }
     
     return <>
         {!authState.userId ? <Navigate to='/log-in' replace/> : null}
@@ -223,7 +317,7 @@ const Communication = () => {
                     <button>speak to selected group</button>
                     {
                         !recEnabled ?
-                        <button onClick={handleRecordPressed}>record conversation</button> : 
+                        <button onClick={startRecording}>record conversation</button> : 
                         <button style={{color: 'red'}} onClick={stopRecording}>stop recording</button>
                     }
                 </div>

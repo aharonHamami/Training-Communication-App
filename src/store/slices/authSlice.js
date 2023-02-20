@@ -3,9 +3,9 @@ import { createSlice } from '@reduxjs/toolkit';
 const authSlice = createSlice({
     name: 'authenticate',
     initialState: {
-        name: null,
-        userId: null,
-        token: null
+        name: "name_"+Math.floor(Math.random()*1000), // null
+        userId: "id_"+Math.floor(Math.random()*1000), // null
+        token: "token_"+Math.floor(Math.random()*1000) // null
     },
     reducers: {
         connect: (state, action) => {

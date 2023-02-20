@@ -19,7 +19,7 @@ const SidebarB = (props) => {
     }
     
     return (
-        <div className={classes.sideButton}>
+        <div className={classes.sideButton} onClick={props.onClick}>
             {start}
             <div style={{flexGrow: '1'}}>
                 {props.children}

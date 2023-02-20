@@ -20,3 +20,11 @@
     display: flex;
     flex-direction: row;
 }
+
+.sideButton p {
+    display: block;
+    overflow: hidden;
+    white-space: nowrap; /* prevent line breaks - for text-overflow */
+    text-overflow: ellipsis;
+    user-select: none; /* prevent the user to select/mark the text */
+}
