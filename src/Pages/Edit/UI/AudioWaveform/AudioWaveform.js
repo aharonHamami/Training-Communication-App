@@ -13,14 +13,13 @@ const Waveform = (props) => {
         }
         
         const sliceWidth = canvas.width / channelData.length;
-        console.log("sliceWidth: ", sliceWidth);
         
         canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
         canvasCtx.beginPath();
         for (let i = 0; i < channelData.length; i++) {
             const v = channelData[i]; // between -1 to 1
             const x = sliceWidth * i;
-            const y = canvas.height - v * canvas.height;
+            const y = canvas.height/2 - v * canvas.height/2;
             if (i === 0) {
                 canvasCtx.moveTo(x, y);
             } else {
@@ -40,6 +39,8 @@ const Waveform = (props) => {
         <canvas
             id="myCanvas"
             ref={canvasRef}
+            width='1000px'
+            height='200px'
             style={{border: '1px solid black', width: '90%', height: '200px'}}>
         </canvas> 
     );

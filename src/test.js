@@ -1,3 +1,6 @@
-const x = null;
+const math = require('mathjs');
 
-console.log(typeof x);
+const number = math.e;
+// const newNumber = math.add(number, math.complex(3,8));
+
+console.log('number: ', number);

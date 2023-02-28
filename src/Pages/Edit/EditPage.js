@@ -17,8 +17,9 @@ function isPlaying(audio) {
     return false;
 }
 
-// delete/change later
 let audioCtx;
+
+let urlList;
 
 const Edit = () => {
     const [recordsInfo, setRecordsInfo] = useState(null); // [{name: 'name', recordName: 'record.mp3', audio: audioObj, waveform: waveformData}]
@@ -54,6 +55,8 @@ const Edit = () => {
     
     // to get the records from the server
     useEffect(() => {
+        urlList = [];
+        
         console.log('getting recordings from the server...');
         axiosServer.get('/editing/records')
             .then(response => {
@@ -69,6 +72,13 @@ const Edit = () => {
             .catch(error => {
                 console.log("Error: couldn't get record names from server: \n", error);
             });
+        
+        return () => {
+            console.log('delete all urls');
+            for(const url of urlList) {
+                URL.revokeObjectURL(url);
+            }
+        }
     }, []);
     
     // to handle the audio selected
@@ -78,7 +88,7 @@ const Edit = () => {
             currentAudioRef.current = currentRecordInfo.audio;
             
             currentAudioRef.current.onloadedmetadata = () => {
-                // console.log('duration: ', currentAudioRef.current.duration);
+                console.log('duration: ', currentAudioRef.current.duration);
                 setMaxValue(currentAudioRef.current.duration);
             }
             
@@ -100,6 +110,7 @@ const Edit = () => {
                 
                 const blob = new Blob([buffer], { type: 'audio/ogg' });
                 const url = URL.createObjectURL(blob);
+                urlList.push(url);
                 // window.open(url);
                 const recordAudio = new Audio(url);
                 updateRedord(index, {audio: recordAudio});
@@ -107,6 +118,7 @@ const Edit = () => {
                 // need to be called before making a blob from the arraBuffer
                 audioCtx.decodeAudioData(buffer, audioBuffer => {
                     const channelData = audioBuffer.getChannelData(0);
+                    // console.log('channel data: ', channelData);
                     updateRedord(index, {waveform: channelData});
                 },
                 e => {
@@ -150,10 +162,36 @@ const Edit = () => {
         }
     };
     
+    const handleFftPressed = index => {
+        const waveform = recordsInfo[index].waveform;
+        
+        // decreasing the signal's length to be a power of 2
+        const length = waveform.length;
+        let p = 0;
+        while(Math.pow(2, p) <= length)
+            p++
+        p--
+        const sendWaveform = waveform.slice(0, Math.pow(2, p));
+        console.log('fft size of the sent file is 2^'+p+' which is '+sendWaveform.length+' from '+waveform.length);
+        
+        // console.log('send to the server: ', {waveform: recordsInfo[index].waveform});
+        axiosServer.post('/editing/edit/makeFFT', {waveform: sendWaveform})
+            .then(response => {
+                console.log('server response: ', response.data);
+                let fftWaveform = response.data.FFT.map(cmplxNum => cmplxNum.im);
+                const max = fftWaveform.reduce((max, currentValue) => Math.max(max, currentValue));
+                fftWaveform = fftWaveform.map(val => val/max);
+                updateRedord(index, {waveform: fftWaveform});
+            })
+            .catch(error => {
+                console.log("Couldn't get dtf info from the server:\n", error);
+            });
+    };
+    
     const handleSliderChanged = (value) => {
         currentAudioRef.current.currentTime = value;
         // setSliderValue(value);
-    }
+    };
     
     let recordButtons = <CircularProgress />;
     if(recordsInfo) {
@@ -193,7 +231,7 @@ const Edit = () => {
                             }
                             
                             // sending the files as form data
-                            axiosServer.post('/editing/records/upload-file', formData, /*{onUploadProgress: }*/)
+                            axiosServer.post('/editing/records/upload-files', formData /*{onUploadProgress: }*/)
                                 .then(response => {
                                     console.log('server response: ', response);
                                     
@@ -238,6 +276,7 @@ const Edit = () => {
             
             <div className={classes.infoPanel}>
                 <AudiooWaveform audio={recordsInfo[recordIndex]} />
+                <button onClick={() => handleFftPressed(recordIndex)}>calculate fft</button>
             </div>
             
             
