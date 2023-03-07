@@ -76,9 +76,17 @@ const Communication = () => {
                     
                     // noise sound effects destination:
                     noiseStreamtDest = audioContext.createMediaStreamDestination();
-                    const testAudio = new Audio();
-                    testAudio.srcObject = noiseStreamtDest.stream;
-                    testAudio.play();
+                    // to hear the self noise
+                    const noiseAudio = new Audio();
+                    noiseAudio.srcObject = noiseStreamtDest.stream;
+                    noiseAudio.play();
+                    
+                    // // osscillator: delete later
+                    // const oscillator = audioContext.createOscillator();
+                    // // oscillator.type = "square";
+                    // // oscillator.frequency.setValueAtTime(440, audioContext.currentTime); // value in hertz
+                    // oscillator.connect(noiseStreamtDest);
+                    // oscillator.start();
                     
                     // local stream destination:
                     localStreamDest = audioContext.createMediaStreamDestination();
@@ -221,7 +229,7 @@ const Communication = () => {
             const audioURL = URL.createObjectURL(blob); // converting blob into URL
             // console.log('record url: ', audioURL);
             setAvailableUrl(audioURL);
-            window.open(audioURL);
+            // window.open(audioURL);
         }
     }
     const stopRecording = () => {
@@ -243,12 +251,13 @@ const Communication = () => {
             play: true
         }
         
-        if(soundInfo.audio) { // if the audio is already saved on the RAM
+        if(soundInfo.audio) {   // if the audio is already saved on the RAM
             soundInfo.audio.play();
-        } else {
+        } else {                // if not get it from the server
             console.log('getting sound file from the server...');
             const path = axiosServer.getUri() + '/editing/sounds/' + soundInfo.soundName;
             const soundAudio = new Audio(path);
+            soundAudio.volume = 0.5;
             soundAudio.crossOrigin = "anonymous"; // preventing error of mutated audio (CORS access restrictions)
             
             try {

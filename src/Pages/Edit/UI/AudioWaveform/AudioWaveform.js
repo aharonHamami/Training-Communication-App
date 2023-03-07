@@ -40,8 +40,8 @@ const Waveform = (props) => {
             id="myCanvas"
             ref={canvasRef}
             width='1000px'
-            height='200px'
-            style={{border: '1px solid black', width: '90%', height: '200px'}}>
+            height='300px'
+            style={{border: '1px solid black', width: '90%', height: '300px'}}>
         </canvas> 
     );
 }

@@ -7,18 +7,10 @@ import Menubar from '../../Components/Menubar/Menubar';
 import SidePanel from "../../ComponentsUI/Sidebar/SidePanel";
 import RecordButtons from './Buttons/RecordButtons';
 import axiosServer from '../../clients/axios/axiosClient';
-import AudioControls from './UI/AudioControls/AudioControls';
+import AudioControls from '../../ComponentsUI/AudioControls/AudioControls';
 import AudiooWaveform from './UI/AudioWaveform/AudioWaveform';
 
-function isPlaying(audio) {
-    if(audio && !audio.paused && audio.currentTime > 0) {
-        return true;
-    }
-    return false;
-}
-
 let audioCtx;
-
 let urlList;
 
 const Edit = () => {
@@ -29,6 +21,77 @@ const Edit = () => {
     
     // to avoid problems and ensure this object is never changed due to React's re-renders
     const currentAudioRef = useRef(null);
+    const fftRef = useRef(null);
+    const menuInfoRef = useRef([
+        {
+            label: "File",
+            options: [
+                {
+                    title: 'import file',
+                    action: null
+                },
+                {
+                    title: 'upload files',
+                    action: () => {
+                        var input = document.createElement('input');
+                        input.type = 'file';
+                        input.multiple = true; // allow multiple file choices
+                        
+                        // waiting for a file
+                        input.onchange = event => {
+                            const files = [...event.target.files]; // taking the files
+                            
+                            // console.log(files);
+                            
+                            // we parse the files into a FormData format:
+                            const formData = new FormData();
+                            files.forEach(file => {
+                                formData.append('audio', file);
+                            });
+                            
+                            console.log('sending:');
+                            for(const value of formData.values()) {
+                                console.log(value);
+                            }
+                            
+                            // sending the files as form data
+                            axiosServer.post('/editing/records/upload-files', formData /*{onUploadProgress: }*/)
+                                .then(response => {
+                                    console.log('server response: ', response);
+                                    
+                                    const newRecordNames = response.data.files.map(file => file.name);
+                                    addNewRecords(newRecordNames);
+                                });
+                        }
+                        
+                        input.click(); // to emit the onchange event
+                    }
+                },
+            ]
+        },
+        {
+            label: "View",
+            options: [
+                {
+                    title: 'dark/light mode',
+                    action: null
+                }
+            ]
+        },
+        {
+            label: "Help",
+            options: [
+                {
+                    title: 'how to use?',
+                    action: null
+                },
+                {
+                    title: 'about me',
+                    action: null
+                },
+            ]
+        }
+    ]);
     
     function addNewRecords(recordNames) {
         const newRecordsInfo = recordNames.map(record => ({
@@ -53,7 +116,7 @@ const Edit = () => {
         });
     }
     
-    // to get the records from the server
+    // Mount Effect - to get the records from the server
     useEffect(() => {
         urlList = [];
         
@@ -154,33 +217,21 @@ const Edit = () => {
         
     };
     
-    const handlePlayPressed = (event) => {
-        if(isPlaying(currentAudioRef.current)) {
-            currentAudioRef.current.pause();
-        }else {
-            currentAudioRef.current.play();
-        }
-    };
-    
     const handleFftPressed = index => {
+        console.log('calculate FFT');
         const waveform = recordsInfo[index].waveform;
         
-        // decreasing the signal's length to be a power of 2
-        const length = waveform.length;
-        let p = 0;
-        while(Math.pow(2, p) <= length)
-            p++
-        p--
-        const sendWaveform = waveform.slice(0, Math.pow(2, p));
-        console.log('fft size of the sent file is 2^'+p+' which is '+sendWaveform.length+' from '+waveform.length);
-        
-        // console.log('send to the server: ', {waveform: recordsInfo[index].waveform});
-        axiosServer.post('/editing/edit/makeFFT', {waveform: sendWaveform})
+        axiosServer.post('/editing/edit/calculateFFT', {signal: waveform})
             .then(response => {
+                fftRef.current = response.data.FFT;
+                
                 console.log('server response: ', response.data);
-                let fftWaveform = response.data.FFT.map(cmplxNum => cmplxNum.im);
+                let fftWaveform = response.data.FFT.map(cmplxNum => Math.sqrt(cmplxNum.re**2 + cmplxNum.im**2));
+                // fftWaveform = fftWaveform.slice(0, fftWaveform.length/2);
+                // fftWaveform = fftWaveform.slice(fftWaveform.length/10, fftWaveform.length - fftWaveform.length/10);
                 const max = fftWaveform.reduce((max, currentValue) => Math.max(max, currentValue));
                 fftWaveform = fftWaveform.map(val => val/max);
+                
                 updateRedord(index, {waveform: fftWaveform});
             })
             .catch(error => {
@@ -188,104 +239,93 @@ const Edit = () => {
             });
     };
     
-    const handleSliderChanged = (value) => {
-        currentAudioRef.current.currentTime = value;
-        // setSliderValue(value);
-    };
+    const handleIfftPressed = index => {
+        console.log('calculate IFFT');
+        axiosServer.post('/editing/edit/calculateIFFT', {frequencies: fftRef.current})
+            .then(response => {
+                console.log('server response: ', response.data);
+                let signal = response.data.IDFT.map(cmplxNum => cmplxNum.re);
+                
+                // playing the signal
+                const myArrayBuffer = audioCtx.createBuffer(1, signal.length, audioCtx.sampleRate);
+                // myArrayBuffer.copyFromChannel(new Float32Array(signal), 0);
+                const nowBuffering = myArrayBuffer.getChannelData(0);
+                for (let i = 0; i < myArrayBuffer.length; i++) {
+                    nowBuffering[i] = signal[i];
+                }
+                const source = audioCtx.createBufferSource();
+                source.buffer = myArrayBuffer;
+                source.connect(audioCtx.destination);
+                console.log('start playing...');
+                source.start();
+                
+                updateRedord(index, {waveform: signal});
+            })
+            .catch(error => {
+                console.log("Couldn't get dtf info from the server:\n", error);
+            });
+    }
+    
+    const handleReduceNoise = index => {
+        console.log('reduce noise');
+        const waveform = recordsInfo[index].waveform;
+        
+        axiosServer.post('/editing/edit/removeNoise',
+            {
+                signal: waveform,
+                speachDomain: {start: 0, size: waveform.length/2},
+                noiseDomain: {start: 0, size: 2**10} // noise needs to be a power of 2
+            })
+            .then(response => {
+                console.log('server response: ', response.data);
+                
+                let signal = response.data.signal.map(sample => {
+                    if(typeof sample === 'number') return sample;
+                    return sample.re
+                });
+                
+                // playing the signal:
+                const myArrayBuffer = audioCtx.createBuffer(1, signal.length, audioCtx.sampleRate);
+                // myArrayBuffer.copyFromChannel(new Float32Array(signal), 0);
+                const nowBuffering = myArrayBuffer.getChannelData(0);
+                for (let i = 0; i < myArrayBuffer.length; i++) {
+                    nowBuffering[i] = signal[i];
+                }
+                const source = audioCtx.createBufferSource();
+                source.buffer = myArrayBuffer;
+                source.connect(audioCtx.destination);
+                console.log('start playing...');
+                source.start();
+                
+                updateRedord(index, {waveform: signal});
+            })
+            .catch(error => {
+                console.log("Error: couldn't remove noise:\n", error);
+            });
+    }
     
     let recordButtons = <CircularProgress />;
     if(recordsInfo) {
         recordButtons = <RecordButtons recordsInfo={recordsInfo} onPress={handleRecordPressed} />;
     }
     
-    const menuItems = [
-        {
-            label: "File",
-            options: [
-                {
-                    title: 'import file',
-                    action: null
-                },
-                {
-                    title: 'upload files',
-                    action: () => {
-                        var input = document.createElement('input');
-                        input.type = 'file';
-                        input.multiple = true; // allow multiple file choices
-                        
-                        // waiting for a file
-                        input.onchange = event => {
-                            const files = [...event.target.files]; // taking the files
-                            
-                            // console.log(files);
-                            
-                            // we parse the files into a FormData format:
-                            const formData = new FormData();
-                            files.forEach(file => {
-                                formData.append('audio', file);
-                            });
-                            
-                            console.log('sending:');
-                            for(const value of formData.values()) {
-                                console.log(value);
-                            }
-                            
-                            // sending the files as form data
-                            axiosServer.post('/editing/records/upload-files', formData /*{onUploadProgress: }*/)
-                                .then(response => {
-                                    console.log('server response: ', response);
-                                    
-                                    const newRecordNames = response.data.files.map(file => file.name);
-                                    addNewRecords(newRecordNames);
-                                });
-                        }
-                        
-                        input.click(); // to emit the onchange event
-                    }
-                },
-            ]
-        },
-        {
-            label: "View",
-            options: [
-                {
-                    title: 'dark/light mode',
-                    action: null
-                }
-            ]
-        },
-        {
-            label: "Help",
-            options: [
-                {
-                    title: 'how to use?',
-                    action: null
-                },
-                {
-                    title: 'about me',
-                    action: null
-                },
-            ]
-        }
-    ];
-    
     let content = <h3>Choose a file</h3>
     if(recordIndex >= 0) {
         content = <>
-            <h1>title/content</h1>
+            <h1>Audio Explorer</h1>
             
             <div className={classes.infoPanel}>
-                <AudiooWaveform audio={recordsInfo[recordIndex]} />
                 <button onClick={() => handleFftPressed(recordIndex)}>calculate fft</button>
+                <button onClick={() => handleIfftPressed(recordIndex)}>calculate ifft</button>
+                <AudiooWaveform audio={recordsInfo[recordIndex]} />
+                <button onClick={() => handleReduceNoise(recordIndex)}>reduce noise</button>
             </div>
             
-            
             <AudioControls 
-                audio={currentAudioRef.current}
+                audioRef={currentAudioRef}
                 value={sliderValue}
                 duration={maxValue}
-                onPlay={event => handlePlayPressed(event)}
-                onChange={(value) => {handleSliderChanged(value)}} />
+                 />
                 
             <h2>{recordsInfo[recordIndex].name}</h2>
             
@@ -294,7 +334,7 @@ const Edit = () => {
     
     return (
         <div className={classes.editPage}>
-            <Menubar itemsInfo={menuItems} />
+            <Menubar itemsInfo={menuInfoRef.current} />
             <div className={classes.content}>
                 {/* side window */}
                 <div className={classes.sideArea}>
