@@ -1,34 +1,48 @@
 import { io } from 'socket.io-client';
 
 export default class RtcClient {
+    #connected;
+    #listeners;
+    #localStream;
+    #usersPeerMap;
+    #socket;
+    
     constructor(servers) {
-        this.listeners = {}; // events: 'stream', 'new-users', 'user-left'
+        this.#connected = false;
         
-        this.localStream = null;
-        this.usersPeerMap = []; // [{id: 'userId', peerConnection: 'rtcPeerConnection', stream: 'stream'}]
+        this.#listeners = {}; // events: 'stream', 'new-users', 'user-left'
+        
+        this.#localStream = null;
+        this.#usersPeerMap = []; // [{id: 'userId', peerConnection: 'rtcPeerConnection', stream: 'stream'}]
         
         this.servers = servers;
-        this.socket = io(this.servers.signalingServer, { autoConnect: false, transports: ['websocket'] });
+        this.#socket = io(this.servers.signalingServer.url, {
+            autoConnect: false,
+            transports: ['websocket'],
+            query: {
+                token: this.servers.signalingServer.token
+            }
+        });
         
         // socket.onAny((event, ...args) => {
         //     console.log(event, args);
         // });
         
-        this.socket.on("connect", () => {
+        this.#socket.on("connect", () => {
             console.log("connected to server with socket.io");
         });
     }
 
     on(eventName, callback) {
-        if (!this.listeners[eventName]) {
-            this.listeners[eventName] = [];
+        if (!this.#listeners[eventName]) {
+            this.#listeners[eventName] = [];
         }
-        this.listeners[eventName].push(callback);
+        this.#listeners[eventName].push(callback);
     }
 
     emit(eventName, ...args) {
-        if (this.listeners[eventName]) {
-            this.listeners[eventName].forEach(callback => {
+        if (this.#listeners[eventName]) {
+            this.#listeners[eventName].forEach(callback => {
                 try{
                     callback(...args)
                 }catch(e) {
@@ -39,12 +53,14 @@ export default class RtcClient {
     }
     
     async connect(auth, stream) {
-        this.localStream = stream;
+        this.#localStream = stream;
         
-        this.socket.auth = auth;
-        this.socket.connect();
+        this.#socket.auth = auth;
+        this.#socket.connect();
         
-        this.socket.on('welcome', connectedUsers => {
+        this.#socket.on('welcome', connectedUsers => {
+            this.#connected = true;
+            
             const usersArray = connectedUsers.map(user => ({
                 id: user.id,
                 name: user.name
@@ -55,7 +71,7 @@ export default class RtcClient {
             this.emit('new-users', usersArray);
         });
         
-        this.socket.on('user-joined', (userId, userName) => {
+        this.#socket.on('user-joined', (userId, userName) => {
             console.log(`user ${userName} (${userId}) joined`);
             
             this.#createPeerConnection(userId)
@@ -70,15 +86,15 @@ export default class RtcClient {
             this.emit('new-users', [{ id: userId, name: userName }]);
         });
         
-        this.socket.on('user-left', userId => {
-            const index = this.usersPeerMap.findIndex(u => u.id === userId);
+        this.#socket.on('user-left', userId => {
+            const index = this.#usersPeerMap.findIndex(u => u.id === userId);
             console.log('removing index ', index);
-            this.usersPeerMap.splice(index, 1);
+            this.#usersPeerMap.splice(index, 1);
             
             this.emit('user-left', userId);
         });
         
-        this.socket.on('message-from-peer', async (userId, message) => {
+        this.#socket.on('message-from-peer', async (userId, message) => {
             console.log(`member ${userId} sent message`, message);
             switch(message.type) {
                 case 'offer':
@@ -99,27 +115,32 @@ export default class RtcClient {
     
     async disconnect() {
         console.log('disconnect from the server');
-        this.socket.disconnect();
-        this.socket.removeAllListeners();
+        this.#socket.disconnect();
+        this.#connected = false;
+        this.#socket.removeAllListeners();
         
         console.log('removing tracks');
         
         // others tracks
-        this.usersPeerMap.forEach(user => {
+        this.#usersPeerMap.forEach(user => {
             user.stream.getTracks().forEach(track => {
                 track.stop();
             });
         });
         
-        this.usersPeerMap = [];
+        this.#usersPeerMap = [];
+    }
+    
+    isConnected() {
+        return this.#connected;
     }
     
     async #createPeerConnection(otherUserId) {
         const peerConnection = new RTCPeerConnection(this.servers.webRtcServers);
         
         // send my tracks to the other peer
-        this.localStream.getTracks().forEach(track => {
-            peerConnection.addTrack(track, this.localStream);
+        this.#localStream.getTracks().forEach(track => {
+            peerConnection.addTrack(track, this.#localStream);
         });
         
         const remoteStream = new MediaStream();
@@ -140,28 +161,28 @@ export default class RtcClient {
         // generation ICE candidates and sending them to the other peer (by signaling)
         peerConnection.onicecandidate = async event => {
             if(event.candidate) { // << check what does it means and what event has in general >>
-                this.socket.emit('send-message', otherUserId, {type: "candidate", candidate: event.candidate});
+                this.#socket.emit('send-message', otherUserId, {type: "candidate", candidate: event.candidate});
             }
         }
         
-        this.usersPeerMap.push({id: otherUserId, peerConnection: peerConnection, stream: remoteStream});
+        this.#usersPeerMap.push({id: otherUserId, peerConnection: peerConnection, stream: remoteStream});
     }
     
     // can only be called after creating peer connection
     async #sendOffer(otherUserId) {
-        const peerConnection = this.usersPeerMap.find(user => user.id === otherUserId).peerConnection;
+        const peerConnection = this.#usersPeerMap.find(user => user.id === otherUserId).peerConnection;
         
         // create offer:
         let offer = await peerConnection.createOffer();
         await peerConnection.setLocalDescription(offer);
         // console.log('our offer: ', offer);
         
-        this.socket.emit('send-message', otherUserId, {type: "offer", offer: offer});
+        this.#socket.emit('send-message', otherUserId, {type: "offer", offer: offer});
     }
     
     // add the offer and send an answer
     async #sendAnswer(otherUserId, offer) {
-        const peerConnection = this.usersPeerMap.find(user => user.id === otherUserId).peerConnection;
+        const peerConnection = this.#usersPeerMap.find(user => user.id === otherUserId).peerConnection;
         
         // set the offer we got as the remote description
         await peerConnection.setRemoteDescription(offer);
@@ -170,11 +191,11 @@ export default class RtcClient {
         let answer = await peerConnection.createAnswer();
         await peerConnection.setLocalDescription(answer);
         
-        this.socket.emit('send-message', otherUserId, {type: "answer", answer: answer});
+        this.#socket.emit('send-message', otherUserId, {type: "answer", answer: answer});
     }
     
     async #addAnswer(otherUserId, answer) {
-        const peerConnection = this.usersPeerMap.find(user => user.id === otherUserId).peerConnection;
+        const peerConnection = this.#usersPeerMap.find(user => user.id === otherUserId).peerConnection;
         
         if(!peerConnection.currentRemoteDescription) {
             peerConnection.setRemoteDescription(answer);
@@ -182,7 +203,7 @@ export default class RtcClient {
     }
     
     async #addIceCandidate(otherUserId, candidate) {
-        const otherUser = this.usersPeerMap.find(user => user.id === otherUserId);
+        const otherUser = this.#usersPeerMap.find(user => user.id === otherUserId);
         
         if(otherUser && otherUser.peerConnection) {
             // we add a ICE candidate so both sides will have the efficient way to communicate

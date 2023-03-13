@@ -7,16 +7,8 @@ const Buttons = (props) => props.soundsInfo.map((info, index) => {
         </p>
     );
     
-    const handleClick = () => {
-        if(!info.play) {
-            props.play(info);
-        }else {
-            props.stop(info);
-        }
-    };
-    
     return (
-        <SideButton key={'soundB_'+index} start={signButton} onClick={handleClick}>
+        <SideButton key={'soundB_'+index} start={signButton} onClick={() => props.onSoundPressed(index)}>
             <p>{info.name}</p>
         </SideButton>
     );

@@ -91,10 +91,13 @@ const Registration = (props) => {
         setIsLoading(true);
         axiosServer.post('/users/log-in', sendInfo)
             .then(response => {
-                console.log("server response: ", response);
-                dispatch(connect({name: response.data.name, userId: response.data.userId, token: response.data.token}));
                 setIsLoading(false);
-                navigate('/communication', {replace: true});
+                console.log("server response: ", response);
+                const data = response.data;
+                if(data.name && data.userId) {
+                    dispatch(connect({name: data.name, userId: data.userId, token: data.token, admin: data.admin}));
+                    navigate('/communication', {replace: true});
+                }
             })
             .catch(error => {
                 console.log("server error: ", error);

@@ -2,6 +2,8 @@ import classes from './edit.module.css';
 
 import { CircularProgress } from '@mui/material';
 import { useState, useEffect, useRef } from 'react';
+import { useSelector } from 'react-redux';
+import { Navigate } from 'react-router-dom';
 
 import Menubar from '../../Components/Menubar/Menubar';
 import SidePanel from "../../ComponentsUI/Sidebar/SidePanel";
@@ -18,6 +20,8 @@ const Edit = () => {
     const [recordIndex, setRecordIndex] = useState(-1);
     const [sliderValue, setSliderValue] = useState(0);
     const [maxValue, setMaxValue] = useState(100);
+    
+    const authState = useSelector(state => state.auth);
     
     // to avoid problems and ensure this object is never changed due to React's re-renders
     const currentAudioRef = useRef(null);
@@ -55,7 +59,7 @@ const Edit = () => {
                             }
                             
                             // sending the files as form data
-                            axiosServer.post('/editing/records/upload-files', formData /*{onUploadProgress: }*/)
+                            axiosServer.post('/editing/records/upload-files', formData, { headers: {'Authentication': authState.token} } /*{onUploadProgress: }*/)
                                 .then(response => {
                                     console.log('server response: ', response);
                                     
@@ -118,10 +122,15 @@ const Edit = () => {
     
     // Mount Effect - to get the records from the server
     useEffect(() => {
+        if(!authState || !authState.admin) {
+            return;
+        }
+        
         urlList = [];
         
         console.log('getting recordings from the server...');
-        axiosServer.get('/editing/records')
+        axiosServer.get('/editing/records',
+        {headers: {'Authentication': authState.token}})
             .then(response => {
                 console.log('server response (records): ', response);
                 
@@ -142,7 +151,7 @@ const Edit = () => {
                 URL.revokeObjectURL(url);
             }
         }
-    }, []);
+    }, [authState]);
     
     // to handle the audio selected
     useEffect(() => {
@@ -162,7 +171,8 @@ const Edit = () => {
     }, [recordsInfo, recordIndex]);
     
     function loadAudio(path, index) {
-        axiosServer.get(path, {responseType: 'arraybuffer'})
+        axiosServer.get(path,
+        {responseType: 'arraybuffer', headers: {'Authentication': authState.token}})
             .then(response => {
                 const buffer = response.data;
                 
@@ -189,7 +199,7 @@ const Edit = () => {
                 });
             })
             .catch(error => {
-                console.log("couldn't handle response: ", error);
+                console.log("couldn't get audio properly: ", error);
             })
     }
     
@@ -332,7 +342,8 @@ const Edit = () => {
         </>;
     }
     
-    return (
+    return <>
+        {!authState.admin ? <Navigate to='/' replace/> : null}
         <div className={classes.editPage}>
             <Menubar itemsInfo={menuInfoRef.current} />
             <div className={classes.content}>
@@ -348,7 +359,7 @@ const Edit = () => {
                 <div className={classes.mainArea}>{content}</div>
             </div>
         </div>
-    );
+    </>;
 }
 
 export default Edit;
