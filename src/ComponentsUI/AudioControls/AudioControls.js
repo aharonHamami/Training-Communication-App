@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Box, Slider } from '@mui/material';
+import { Replay5, FastRewind, PlayArrow, Pause, FastForward, Forward5 } from '@mui/icons-material';
 
 function parseToTime(totalSeconds){
     if(totalSeconds < 0) {
@@ -79,14 +80,15 @@ const Controls = (props) => {
         </Box>
         
         {/* buttons - pause, stop, skip, speed managing */}
+        {/* { Replay5, FastRewind, PlayArrow, Pause, FastForward, Forward5 } */}
         <div style={{display: 'flex', flexDirection: 'row', gap: "10px"}}>
-            <button onClick={() => {handleSpeedPressed(false)}} >move slower</button>
-            <button onClick={() => {handleSkipPressed(-2)}} >move backwards</button>
-            <button onClick={handlePlayPressed} style={{color: (isPlaying(props.audioRef.current) ? 'red' : 'black')}}>
-                start/stop
+            <button onClick={() => {handleSpeedPressed(false)}} ><FastRewind /></button>
+            <button onClick={() => {handleSkipPressed(-2)}} ><Replay5 /></button>
+            <button onClick={handlePlayPressed}>
+                {isPlaying(props.audioRef.current) ? <Pause /> : <PlayArrow />}
             </button>
-            <button onClick={() => {handleSkipPressed(2)}} >move forewards</button>
-            <button onClick={() => {handleSpeedPressed(true)}} >move faster</button>
+            <button onClick={() => {handleSkipPressed(2)}} ><Forward5 /></button>
+            <button onClick={() => {handleSpeedPressed(true)}} ><FastForward /></button>
         </div>
     </>;
 };

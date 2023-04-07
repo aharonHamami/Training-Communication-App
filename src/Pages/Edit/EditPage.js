@@ -1,7 +1,7 @@
 import classes from './edit.module.css';
 
 import { CircularProgress } from '@mui/material';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { Navigate } from 'react-router-dom';
 
@@ -41,7 +41,7 @@ const Edit = () => {
                         input.type = 'file';
                         input.multiple = true; // allow multiple file choices
                         
-                        // waiting for a file
+                        // waiting for a 'click'
                         input.onchange = event => {
                             const files = [...event.target.files]; // taking the files
                             
@@ -65,6 +65,9 @@ const Edit = () => {
                                     
                                     const newRecordNames = response.data.files.map(file => file.name);
                                     addNewRecords(newRecordNames);
+                                })
+                                .catch(error => {
+                                    console.log("Couldn't send the files: ", error);
                                 });
                         }
                         
@@ -93,11 +96,17 @@ const Edit = () => {
                     title: 'about me',
                     action: null
                 },
+                {
+                    title: 'open source',
+                    action: () => {
+                        window.open('https://github.com/aharonHamami/Training-Communication-App');
+                    }
+                }
             ]
         }
     ]);
     
-    function addNewRecords(recordNames) {
+    const addNewRecords = useCallback((recordNames) => {
         const newRecordsInfo = recordNames.map(record => ({
             name: record,
             recordName: record,
@@ -105,22 +114,22 @@ const Edit = () => {
             waveform: null
         }));
         setRecordsInfo(state => {
-            if(!state || !Array.isArray(state)) {
+            if(!state || !Array.isArray(state)) { // in case these are the first sounds
                 return newRecordsInfo
             }
             return [...state, ...newRecordsInfo];
         });
-    }
+    }, [setRecordsInfo]);
     
-    function updateRedord(index, info) {
+    const updateRecord = useCallback((index, info) => {
         setRecordsInfo(state => {
             const newRecordsInfo = [...state];
             newRecordsInfo[index] = {...newRecordsInfo[index], ...info};
             return newRecordsInfo;
         });
-    }
+    }, [setRecordsInfo]);
     
-    // Mount Effect - to get the records from the server
+    // get the records from the server
     useEffect(() => {
         if(!authState || !authState.admin) {
             return;
@@ -151,9 +160,9 @@ const Edit = () => {
                 URL.revokeObjectURL(url);
             }
         }
-    }, [authState]);
+    }, [authState, addNewRecords]);
     
-    // to handle the audio selected
+    // handle the audio selected
     useEffect(() => {
         if(recordIndex >= 0 && recordsInfo[recordIndex].audio) {
             const currentRecordInfo = recordsInfo[recordIndex];
@@ -170,7 +179,7 @@ const Edit = () => {
         }
     }, [recordsInfo, recordIndex]);
     
-    function loadAudio(path, index) {
+    const loadAudio = useCallback((path, index) => {
         axiosServer.get(path,
         {responseType: 'arraybuffer', headers: {'Authentication': authState.token}})
             .then(response => {
@@ -186,13 +195,13 @@ const Edit = () => {
                 urlList.push(url);
                 // window.open(url);
                 const recordAudio = new Audio(url);
-                updateRedord(index, {audio: recordAudio});
+                updateRecord(index, {audio: recordAudio});
                 
                 // need to be called before making a blob from the arraBuffer
                 audioCtx.decodeAudioData(buffer, audioBuffer => {
                     const channelData = audioBuffer.getChannelData(0);
                     // console.log('channel data: ', channelData);
-                    updateRedord(index, {waveform: channelData});
+                    updateRecord(index, {waveform: channelData});
                 },
                 e => {
                     console.log('Error decoding audio data', e);
@@ -201,10 +210,10 @@ const Edit = () => {
             .catch(error => {
                 console.log("couldn't get audio properly: ", error);
             })
-    }
+    }, [authState.token, updateRecord]);
     
-    const handleRecordPressed = (index) => {
-        const recordInfo = recordsInfo[index];
+    const handleRecordPressed = useCallback((records, index) => {
+        const recordInfo = records[index];
         console.log('record pressed: ', recordInfo.name);
         
         if(currentAudioRef.current) {
@@ -225,13 +234,14 @@ const Edit = () => {
             setSliderValue(0);
         }
         
-    };
+    }, [loadAudio]);
     
-    const handleFftPressed = index => {
+    const handleFftPressed = useCallback((records, index) => {
         console.log('calculate FFT');
-        const waveform = recordsInfo[index].waveform;
+        const waveform = records[index].waveform;
         
-        axiosServer.post('/editing/edit/calculateFFT', {signal: waveform})
+        axiosServer.post('/editing/edit/calculateFFT', {signal: waveform},
+        {headers: {'Authentication': authState.token}})
             .then(response => {
                 fftRef.current = response.data.FFT;
                 
@@ -242,16 +252,17 @@ const Edit = () => {
                 const max = fftWaveform.reduce((max, currentValue) => Math.max(max, currentValue));
                 fftWaveform = fftWaveform.map(val => val/max);
                 
-                updateRedord(index, {waveform: fftWaveform});
+                updateRecord(index, {waveform: fftWaveform});
             })
             .catch(error => {
                 console.log("Couldn't get dtf info from the server:\n", error);
             });
-    };
+    }, [authState.token, updateRecord]);;
     
-    const handleIfftPressed = index => {
+    const handleIfftPressed = useCallback((index) => {
         console.log('calculate IFFT');
-        axiosServer.post('/editing/edit/calculateIFFT', {frequencies: fftRef.current})
+        axiosServer.post('/editing/edit/calculateIFFT', {frequencies: fftRef.current},
+        {headers: {'Authentication': authState.token}})
             .then(response => {
                 console.log('server response: ', response.data);
                 let signal = response.data.IDFT.map(cmplxNum => cmplxNum.re);
@@ -269,23 +280,24 @@ const Edit = () => {
                 console.log('start playing...');
                 source.start();
                 
-                updateRedord(index, {waveform: signal});
+                updateRecord(index, {waveform: signal});
             })
             .catch(error => {
                 console.log("Couldn't get dtf info from the server:\n", error);
             });
-    }
+    }, [authState.token, updateRecord]);
     
-    const handleReduceNoise = index => {
+    const handleReduceNoise = useCallback((records, index) => {
         console.log('reduce noise');
-        const waveform = recordsInfo[index].waveform;
+        const waveform = records[index].waveform;
         
         axiosServer.post('/editing/edit/removeNoise',
             {
                 signal: waveform,
-                speachDomain: {start: 0, size: waveform.length/2},
+                speachDomain: {start: 0, size: waveform.length},
                 noiseDomain: {start: 0, size: 2**10} // noise needs to be a power of 2
-            })
+            },
+            {headers: {'Authentication': authState.token}})
             .then(response => {
                 console.log('server response: ', response.data);
                 
@@ -307,16 +319,17 @@ const Edit = () => {
                 console.log('start playing...');
                 source.start();
                 
-                updateRedord(index, {waveform: signal});
+                updateRecord(index, {waveform: signal});
             })
             .catch(error => {
                 console.log("Error: couldn't remove noise:\n", error);
             });
-    }
+    }, [authState.token, updateRecord]);
     
     let recordButtons = <CircularProgress />;
     if(recordsInfo) {
-        recordButtons = <RecordButtons recordsInfo={recordsInfo} onPress={handleRecordPressed} />;
+        recordButtons = <RecordButtons recordsInfo={recordsInfo} 
+                                    onPress={(index) => (handleRecordPressed(recordsInfo, index))} />;
     }
     
     let content = <h3>Choose a file</h3>
@@ -325,10 +338,10 @@ const Edit = () => {
             <h1>Audio Explorer</h1>
             
             <div className={classes.infoPanel}>
-                <button onClick={() => handleFftPressed(recordIndex)}>calculate fft</button>
-                <button onClick={() => handleIfftPressed(recordIndex)}>calculate ifft</button>
+                <button onClick={() => {handleFftPressed(recordsInfo, recordIndex)}}>calculate fft</button>
+                <button onClick={() => {handleIfftPressed(recordIndex)}}>calculate ifft</button>
                 <AudiooWaveform audio={recordsInfo[recordIndex]} />
-                <button onClick={() => handleReduceNoise(recordIndex)}>reduce noise</button>
+                <button onClick={() => {handleReduceNoise(recordsInfo, recordIndex)}}>reduce noise</button>
             </div>
             
             <AudioControls 
@@ -350,7 +363,7 @@ const Edit = () => {
                 {/* side window */}
                 <div className={classes.sideArea}>
                     {/* loaded audio */}
-                    <SidePanel title='audio'>
+                    <SidePanel title='audio' size={1}>
                         {recordButtons}
                     </SidePanel>
                 </div>

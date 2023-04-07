@@ -1,0 +1,94 @@
+ .home {
+    display: flex;
+    flex-direction: row;
+    align-items: left;
+    text-align: left;
+    height: 100vh;
+    background-color: #dfe9f6;
+    box-sizing: border-box;
+}
+
+.mainWindow {
+    /* background-color: aqua; */
+    display: flex;
+    flex-direction: row;
+    width: 85%;
+    margin: 5% auto;
+}
+
+.mainWindow .contentBox {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    align-items: left;
+    text-align: left;
+    width: fit-content;
+    padding: 50px;
+    /* box-shadow: 2px 2px 3px #ccc; */
+    border: 1px solid #bbb;
+    border-radius: 20px;
+    background-color: white;
+}
+
+.mainWindow .contentBox button {
+  align-items: center;
+  background-color: #0A66C2;
+  border: 0;
+  border-radius: 100px;
+  box-sizing: border-box;
+  color: #ffffff;
+  cursor: pointer;
+  display: inline-flex;
+  font-family: -apple-system, system-ui, system-ui, "Segoe UI", Roboto, "Helvetica Neue", "Fira Sans", Ubuntu, Oxygen, "Oxygen Sans", Cantarell, "Droid Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Lucida Grande", Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  justify-content: center;
+  line-height: 20px;
+  max-width: 480px;
+  min-height: 40px;
+  min-width: 0px;
+  overflow: hidden;
+  padding-top: 15px;
+  padding-bottom: 15px;
+  padding-left: 30px;
+  padding-right: 30px;
+  text-align: left;
+  touch-action: manipulation;
+  transition: background-color 0.167s cubic-bezier(0.4, 0, 0.2, 1) 0s, box-shadow 0.167s cubic-bezier(0.4, 0, 0.2, 1) 0s, color 0.167s cubic-bezier(0.4, 0, 0.2, 1) 0s;
+  user-select: none;
+  -webkit-user-select: none;
+  vertical-align: middle;
+  transition: all 0.2s ease-in-out;
+}
+
+.mainWindow .contentBox button:hover,
+.mainWindow .contentBox button:focus { 
+  translate: 8px;
+  color: #ffffff;
+  box-shadow: -2px 2px 4px grey;
+  /* background-color: #16437E; */
+}
+
+.mainWindow .contentBox button:active {
+  background: #09223b;
+  color: rgb(255, 255, 255, .7);
+}
+
+.mainWindow .contentBox button:disabled { 
+  cursor: not-allowed;
+  background: rgba(0, 0, 0, .08);
+  color: rgba(0, 0, 0, .3);
+}
+
+.leftWindow {
+  display: flex;
+  flex-grow: 1;
+  justify-content: center;
+  align-items: center;
+  /* background-color: #0A66C2; */
+}
+
+.leftWindow img {
+  width: 80%;
+  height: auto;
+}

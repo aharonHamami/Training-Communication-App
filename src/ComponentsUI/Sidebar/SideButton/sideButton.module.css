@@ -10,15 +10,23 @@
     gap: 5px;
     box-sizing: border-box;
     align-items: center;
+    text-align: left;
 }
 
 .sideButton:hover {
     background-color: rgb(204, 204, 204, 0.9);
 }
 
-.sideButton > div {
+.sideButton .start,
+.sideButton .center,
+.sideButton .end {
     display: flex;
     flex-direction: row;
+}
+
+.sideButton .center {
+    flex-grow: 1;
+    overflow: hidden;
 }
 
 .sideButton p {

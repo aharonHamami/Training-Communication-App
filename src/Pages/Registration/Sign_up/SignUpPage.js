@@ -3,7 +3,7 @@ import classes from "./sign_up.module.css";
 import Button from '@mui/material/Button';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 
@@ -14,7 +14,7 @@ import { connect } from '../../../store/slices/authSlice';
 
 const Registration = () => {
     
-    const [inputArray, setInputarray] = useState([
+    const [inputArray, setInputArray] = useState([
         {
             type: 'text-field',
             name: 'name',
@@ -57,10 +57,10 @@ const Registration = () => {
     
     const navigate = useNavigate();
     
-    const changeValue = (index, value) => {
-        const valueValidation = inputArray[index].validation.pattern.test(value);
+    const changeValue = useCallback((inputs, setInputs, index, value) => {
+        const valueValidation = inputs[index].validation.pattern.test(value);
         
-        const newArray = [...inputArray];
+        const newArray = [...inputs];
         newArray[index] = {
             ...newArray[index],
             value: value,
@@ -69,14 +69,14 @@ const Registration = () => {
                 isValid: valueValidation
             }
         }
-        setInputarray(newArray);
-    }
+        setInputs(newArray);
+    }, []);
     
-    const formSubmitted = (event) => {
+    const formSubmitted = useCallback((inputs) => {
         // event.preventDefault();
         
         // checking validation
-        for(let inputObj of inputArray){
+        for(let inputObj of inputs){
             // if the input is not filled
             if(inputObj.value === ""){
                 setErrorMessage("all the fields must be full");
@@ -92,7 +92,7 @@ const Registration = () => {
         
         // making request
         const sendInfo = {};
-        for(let inputObj of inputArray){
+        for(let inputObj of inputs){
             sendInfo[inputObj.name] = inputObj.value;
         }
         
@@ -106,7 +106,7 @@ const Registration = () => {
                 const data = response.data;
                 if(data.userId) {
                     dispatch(connect({name: sendInfo.name, userId: data.userId, token: data.token, admin: data.admin}));
-                    navigate('/communication', {replace: true});
+                    navigate('/', {replace: true});
                 }
             })
             .catch(error => {
@@ -122,7 +122,7 @@ const Registration = () => {
                 
                 setIsLoading(false);
             });
-    }
+    }, [dispatch, navigate]);
     
     let content = null;
     if(isLoading) {
@@ -131,11 +131,11 @@ const Registration = () => {
         content = <>
             <form className={classes.logInForm}>
                 <h2>sign up</h2>
-                <InputList inputArray={inputArray} setValue={changeValue} />
+                <InputList inputArray={inputArray} setValue={(index, value) => {changeValue(inputArray, setInputArray, index, value)}} />
                 <p style={{color: 'red'}}>{errorMessage}</p>
             </form>
-            <Box onSubmit={formSubmitted} sx={{marginTop: '15px'}}>
-                <Button variant='contained' color='success' onClick={formSubmitted}>sign up</Button>
+            <Box sx={{marginTop: '15px'}}>
+                <Button variant='contained' color='success' onClick={(event) => {formSubmitted(inputArray)}}>sign up</Button>
             </Box>
         </>;
     }

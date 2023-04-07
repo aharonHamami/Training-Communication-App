@@ -1,9 +1,10 @@
 import classes from './communication.module.css';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { Navigate } from 'react-router-dom';
 import CircularProgress from '@mui/material/CircularProgress';
+import { Mic, RadioButtonChecked, Download, Upload } from '@mui/icons-material';
 
 import RtcClient from '../../clients/WebRtcClient/webrtcClient';
 import axiosServer from '../../clients/axios/axiosClient';
@@ -46,16 +47,32 @@ const Communication = () => {
     const [recEnabled, setRecEnabled] = useState(false);
     const [recordUrl, setRecordUrl] = useState(null);
     const [error, setError] = useState(null);
+    const [messages, setMessages] = useState([]);
     
     const authState = useSelector(state => state.auth);
     
-    function updateSound(index, info) {
+    const updateSound = useCallback((index, info) => {
         setSoundsInfoList(state => {
             const newSoundsInfo = [...state];
             newSoundsInfo[index] = {...newSoundsInfo[index], ...info};
             return newSoundsInfo;
         });
-    }
+    }, []);
+    
+    const addNewSounds = useCallback((soundNames) => {
+        const newSoundsInfo = soundNames.map(sound => ({
+            name: sound,
+            soundName: sound,
+            audio: null,
+            play: false,
+        }));
+        setSoundsInfoList(state => {
+            if(!state || !Array.isArray(state)) { // in case these are the first sounds
+                return newSoundsInfo
+            }
+            return [...state, ...newSoundsInfo];
+        });
+    }, []);
     
     // to start communication
     useEffect(() => {
@@ -74,10 +91,6 @@ const Communication = () => {
             name: authState.name,
             signed: true
         };
-        // setUsersInfo(state => [
-        //     {...myUserInfo, name: myUserInfo.name+' (you)'},
-        //     ...state
-        // ]);
         setUsersInfo([{...myUserInfo, name: myUserInfo.name+' (you)'}]);
         
         // accessing audio in the page:
@@ -116,7 +129,10 @@ const Communication = () => {
                         // const oscillator = audioContext.createOscillator();
                         // // oscillator.type = "square";
                         // // oscillator.frequency.setValueAtTime(440, audioContext.currentTime); // value in hertz
-                        // oscillator.connect(noiseStreamtDest);
+                        // const gainNode = audioContext.createGain();
+                        // oscillator.connect(gainNode);
+                        // gainNode.gain.volume = 0.1;
+                        // gainNode.connect(noiseStreamtDest);
                         // oscillator.start();
                     }
                     
@@ -128,6 +144,63 @@ const Communication = () => {
                             roomId: 'main'
                         }, localStreamDest.stream); // stream
                     }
+                    
+                    function handleNewUsers(users){
+                        const usersArray = users.map(user => ({
+                            id: user.id,
+                            name: user.name,
+                            signed: true
+                        }));
+                        
+                        setUsersInfo(state => [
+                            ...state,
+                            ...usersArray
+                        ]);
+                        
+                        const newMessages = users.map(user => `${user.name} joined the channel`);
+                        setMessages(state => [
+                            ...state,
+                            ...newMessages
+                        ]);
+                    };
+                    
+                    function handleNewStream(stream, userId) {
+                        if(audioContext && recordStreamDest) {
+                            // connect the current stream into the audio context
+                            try {
+                                audioContext.createMediaStreamSource(stream).connect(recordStreamDest);
+                            }catch(e) {
+                                console.log('Audiocontext Error: ', e);
+                            }
+                        }else {
+                            console.log('<< Error: audioContext or destination is still not ready >>');
+                        }
+                        
+                        // play the other member stream:
+                        const audio = new Audio();
+                        audio.srcObject = stream;
+                        audio.play();
+                    };
+                    
+                    function handleUserLeft(userId) {
+                        console.log(`user ${userId} left`);
+                        let userName = '';
+                        
+                        setUsersInfo(state => {
+                            return state.filter(user => {
+                                if(user.id !== userId) {
+                                    return true;
+                                }
+                                userName = user.name;
+                                return false;
+                            });
+                        });
+                        
+                        setMessages(state => [
+                            ...state,
+                            `${userName} left`
+                        ]);
+                    };
                     
                     client.on('new-users', handleNewUsers);
                     client.on('stream', handleNewStream);
@@ -196,84 +269,48 @@ const Communication = () => {
         }
     }, [micEnabled]);
     
-    function handleNewUsers(users) {
-        const usersArray = users.map(user => ({
-            id: user.id,
-            name: user.name,
-            signed: true
-        }));
-        
-        setUsersInfo(state => [
-            ...state,
-            ...usersArray
-        ]);
-    }
+    const handleMicPressed = useCallback(() => {
+        setMicEnabled(state => !state);
+    }, []);
     
-    function handleNewStream(stream, userId) {
-        if(audioContext && recordStreamDest) {
-            // connect the current stream into the audio context
-            try {
-                audioContext.createMediaStreamSource(stream).connect(recordStreamDest);
-            }catch(e) {
-                console.log('Audiocontext Error: ', e);
-            }
-        }else {
-            console.log('<< Error: audioContext or destination is still not ready >>');
-        }
-        
-        // play the other member stream:
-        const audio = new Audio();
-        audio.srcObject = stream;
-        audio.play();
-    }
-    
-    function handleUserLeft(userId) {
-        console.log(`user ${userId} left`);
-        setUsersInfo(state => {
-            return state.filter(user => (user.id !== userId));
-        });
-    }
-    
-    const handleMicPressed = () => {
-        setMicEnabled(!micEnabled);
-    }
-    
-    const startRecording = () => {
-        const mixedTracks = recordStreamDest.stream.getTracks()[0];
-        const stream = new MediaStream([mixedTracks]);
-        mediaRecorder = new MediaRecorder(stream);
-        
-        let chunks = []; // saves the data from the recorder
-        console.log('start recording');
-        mediaRecorder.start();
-        setRecEnabled(true);
-        console.log('state: ' + mediaRecorder.state);
-        
-        mediaRecorder.ondataavailable = (e) => {
-            console.log('data available');
-            chunks.push(e.data); // add data from the recorder to the chunks
-        };
-        
-        mediaRecorder.onstop = (e) => {
-            console.log('recording stopped, chunks: ', chunks);
-            const blob = new Blob(chunks, {type: "audio/ogg; codecs=opus"}); // blob is a file type? // audio/mpeg
-            chunks = []; // initialing the chunks again
-            const audioURL = URL.createObjectURL(blob); // converting blob into URL
-            // console.log('record url: ', audioURL);
-            URL.revokeObjectURL(recordUrl);
-            setRecordUrl(audioURL);
-            // window.open(audioURL);
-        }
-    }
-    const stopRecording = () => {
-        if(mediaRecorder) {
-            mediaRecorder.stop();
-            setRecEnabled(false);
+    const handleRecordPressed = useCallback(() => {
+        console.log('record pressed: '+recEnabled);
+        if(!recEnabled) { // start recording
+            const mixedTracks = recordStreamDest.stream.getTracks()[0];
+            const stream = new MediaStream([mixedTracks]);
+            mediaRecorder = new MediaRecorder(stream);
+            
+            let chunks = []; // saves the data from the recorder
+            console.log('start recording');
+            mediaRecorder.start();
+            setRecEnabled(true);
             console.log('state: ' + mediaRecorder.state);
+            
+            mediaRecorder.ondataavailable = (e) => {
+                console.log('data available');
+                chunks.push(e.data); // add data from the recorder to the chunks
+            };
+            
+            mediaRecorder.onstop = (e) => {
+                console.log('recording stopped, chunks: ', chunks);
+                const blob = new Blob(chunks, {type: "audio/ogg; codecs=opus"}); // blob is a file type? // audio/mpeg
+                chunks = []; // initialing the chunks again
+                const audioURL = URL.createObjectURL(blob); // converting blob into URL
+                // console.log('record url: ', audioURL);
+                URL.revokeObjectURL(recordUrl); // delete previous url
+                setRecordUrl(audioURL);
+                // window.open(audioURL);
+            }
+        }else { // stop recording
+            if(mediaRecorder) {
+                mediaRecorder.stop();
+                setRecEnabled(false);
+                console.log('state: ' + mediaRecorder.state);
+            }
         }
-    }
+    }, [recordUrl, recEnabled]);
     
-    async function loadAudio(path) {
+    const loadAudio = useCallback(async (path) => {
         return axiosServer.get(path,
         {responseType: 'arraybuffer', headers: {'Authentication': authState.token}})
             .then(response => {
@@ -291,9 +328,9 @@ const Communication = () => {
                 console.log('something went wrong: ', error);
                 return Promise.reject(error)
             })
-    }
+    }, [authState.token]);
     
-    const handlePlaySoundPressed = soundIndex => {
+    const handlePlaySoundPressed = useCallback((soundsInfoList, soundIndex) => {
         const soundInfo = soundsInfoList[soundIndex];
         
         console.log('play sound: ', !soundInfo.play);
@@ -311,6 +348,7 @@ const Communication = () => {
             loadAudio(path)
                 .then(soundAudio => {
                     soundAudio.volume = 0.5;
+                    soundAudio.loop = true;
                     soundAudio.crossOrigin = "anonymous"; // preventing error of mutated audio (CORS access restrictions)
                     
                     try {
@@ -327,21 +365,80 @@ const Communication = () => {
                     console.log("couldn't get audio properly: ", error);
                 });
         }
-    }
+    }, [loadAudio, updateSound]);
+    
+    const handleUploadRecord = useCallback(async () => {
+        let file = await fetch(recordUrl)
+                            .then(r => r.blob())
+                            .then(blobFile => new File([blobFile], `record_${Date.now()}.ogg`, { type: "audio/ogg" }));
+        
+        // we parse the files into a FormData format:
+        const formData = new FormData();
+        formData.append('audio', file);
+        
+        console.log('sending...');
+        // sending the files as form data
+        axiosServer.post('/editing/records/upload-files', formData, { headers: {'Authentication': authState.token} } /*{onUploadProgress: }*/)
+            .then(response => {
+                console.log('server response: ', response);
+            })
+            .catch(error => {
+                console.log("Couldn't upload the file: ", error);
+            });
+    }, [authState.token, recordUrl]);
+    
+    const handleUploadSound = useCallback(() => {
+        var input = document.createElement('input');
+        input.type = 'file';
+        input.multiple = true; // allow multiple file choices
+        
+        // waiting for a 'click'
+        input.onchange = event => {
+            const files = [...event.target.files]; // taking the files
+            
+            // console.log(files);
+            
+            // we parse the files into a FormData format:
+            const formData = new FormData();
+            files.forEach(file => {
+                formData.append('audio', file);
+            });
+            
+            console.log('sending:');
+            for(const value of formData.values()) {
+                console.log(value);
+            }
+            
+            // sending the files as form data // pppp
+            axiosServer.post('/editing/sounds/upload-files', formData, { headers: {'Authentication': authState.token} } /*{onUploadProgress: }*/)
+                .then(response => {
+                    console.log('server response: ', response);
+                    
+                    const newRecordNames = response.data.files.map(file => file.name);
+                    addNewSounds(newRecordNames);
+                })
+                .catch(error => {
+                    console.log("Couldn't send the files: ", error);
+                });
+        }
+        
+        input.click(); // to emit the onchange event
+    }, [addNewSounds, authState.token]);
     
     const usersButtons = <UserButtons usersInfo={usersInfo} />
     
     let soundButtons = <CircularProgress />;
     if(soundsInfoList) {
-        soundButtons = <SoundButtons soundsInfo={soundsInfoList} onSoundPressed={handlePlaySoundPressed} />;
+        soundButtons = <SoundButtons soundsInfo={soundsInfoList}
+                                onSoundPressed={(index) => handlePlaySoundPressed(soundsInfoList, index)} />;
     }
     
     let recordControls = null;
     if(recordUrl) {
         recordControls = <>
             <audio src={recordUrl} type="audio/ogg" controls />
-            <p>download</p>
-            <p>upload</p>
+            <a href={recordUrl} download ><Download style={{height: '100%'}} /></a>
+            <div onClick={handleUploadRecord} ><Upload style={{height: '100%'}} /></div>
         </>;
     }
     
@@ -355,7 +452,7 @@ const Communication = () => {
                 </SidePanel>
                 {
                     authState.admin ?
-                    <SidePanel title='sound' size={4}>
+                    <SidePanel title='sound' size={4} titleAction={handleUploadSound}>
                         {soundButtons}
                     </SidePanel>
                     : null
@@ -365,18 +462,14 @@ const Communication = () => {
             {/* main area */}
             <div className={classes.mainArea}>
                 <div className={classes.infoPanel}>
-                    <h1>some info during the running...</h1>
                     {error ? <h2 style={{color: 'red'}}>{error}</h2> : null}
+                    {messages.map((message, index) => <p key={`message_${index}`}>{message}</p>)}
                 </div>
                 <div className={classes.controlPanel}>
                     <div style={{display: 'flex', flexDirection: 'row', gap: '20px'}}>
-                        <button style={{color: (micEnabled?'green':'red')}} onClick={handleMicPressed}>speak to everyone</button>
+                        <div onClick={handleMicPressed} ><Mic color={(micEnabled?'success':'error')} /></div>
                         <button>speak to selected group</button>
-                        {
-                            !recEnabled ?
-                            <button onClick={startRecording}>record conversation</button> : 
-                            <button style={{color: 'red'}} onClick={stopRecording}>stop recording</button>
-                        }
+                        <div onClick={handleRecordPressed} ><RadioButtonChecked color={recEnabled ? 'error' : 'none'}/></div>
                     </div>
                     <div style={{display: 'flex', flexDirection: 'row', gap: '20px'}}>
                         {recordControls}

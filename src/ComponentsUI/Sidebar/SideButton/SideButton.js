@@ -6,14 +6,14 @@ const SidebarB = (props) => {
     
     let start = null;
     if(props.start){
-        start = <div>
+        start = <div className={classes.start}>
             {props.start}
         </div>
     }
     
     let end = null;
     if(props.end){
-        end = <div>
+        end = <div className={classes.end}>
             {props.end}
         </div>
     }
@@ -21,7 +21,7 @@ const SidebarB = (props) => {
     return (
         <div className={classes.sideButton} onClick={props.onClick}>
             {start}
-            <div style={{flexGrow: '1'}}>
+            <div className={classes.center}>
                 {props.children}
             </div>
             {end}

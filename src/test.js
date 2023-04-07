@@ -1,6 +1,15 @@
-const math = require('mathjs');
+const task1 = async () => {
+    while (true) {
+        console.log('hello');
+    }
+}
 
-const number = math.e;
-// const newNumber = math.add(number, math.complex(3,8));
+const task2 = async () => {
+    while (true) {
+        console.log('bye');
+    }
+}
 
-console.log('number: ', number);
+console.log('lets go');
+task2();
+task1();
