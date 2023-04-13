@@ -1,0 +1,20 @@
+.card {
+    display: flex;
+    box-sizing: border-box;
+    flex-direction: row;
+    margin: auto;
+    align-items: center;
+    background-color: white;
+    width: 80%;
+    height: auto;
+    border: 1px solid black;
+    padding: 0 10px;
+    border-radius: 10px;
+    overflow: hidden; /* to 'hide' overflow background */
+}
+
+@media (max-width: 426px) {
+    .card {
+        flex-direction: column;
+    }
+}

@@ -44,7 +44,7 @@ const Registration = () => {
             value: '',
             validation: {
                 isValid: true,
-                pattern: /^[a-zA-Z0-9]{5,15}$/,
+                pattern: /^[a-zA-Z0-9]{5,15}$/, // password pattern
                 errorMessage: 'password must have the letters: a-z,A-Z,1-9 (5-15 characters)'
             }
         }

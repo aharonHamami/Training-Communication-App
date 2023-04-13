@@ -15,8 +15,21 @@ const Page = () => {
                 <div className={classes.contentBox}>
                     <Link to='/sign-up'><button>sign up</button></Link>
                     <Link to="/log-in"><button>log in</button></Link>
-                    <Link to="/communication"><button>start communication</button></Link>
-                    <Link to="/edit"><button>edit recordings</button></Link>
+                    {
+                        authState.token ?
+                        <>
+                            <Link to="/communication"><button>start communication</button></Link>
+                        </>
+                        : null
+                    }
+                    {
+                        authState.admin ?
+                        <>
+                            <Link to="/edit"><button>edit recordings</button></Link>
+                            <Link to="/users-management"><button>manage users</button></Link>
+                        </>
+                        : null
+                    }
                 </div>
             </div>
             <div className={classes.leftWindow}>

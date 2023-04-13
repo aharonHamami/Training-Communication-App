@@ -9,6 +9,7 @@ import Communication from './Pages/Communication/CommunicationPage';
 import Edit from './Pages/Edit/EditPage';
 import SignUp from './Pages/Registration/Sign_up/SignUpPage';
 import LogIn from "./Pages/Registration/Log_In/LogInPage";
+import UsersManagement from './Pages/UsersManagement/UsersManagementPage';
 
 import axiosServer from './clients/axios/axiosClient';
 import { logOut } from './store/slices/authSlice';
@@ -36,6 +37,7 @@ function App() {
         <Route path='/log-in' element={<LogIn />} />
         <Route path='/communication' element={<Communication />} />
         <Route path='/edit' element={<Edit />} />
+        <Route path='/users-management' element={<UsersManagement />} />
         <Route path='/*' element={<h1>no match for this location</h1>} />
       </Routes>
     </div>

@@ -445,6 +445,7 @@ const Communication = () => {
     return <>
         {!authState.userId ? <Navigate to='/log-in' replace/> : null}
         <div className={classes.communication}>
+            
             {/* side area */}
             <div className={classes.sideArea}>
                 <SidePanel title='users' size={4}>

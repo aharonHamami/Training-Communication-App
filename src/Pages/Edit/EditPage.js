@@ -9,7 +9,7 @@ import Menubar from '../../Components/Menubar/Menubar';
 import SidePanel from "../../ComponentsUI/Sidebar/SidePanel";
 import RecordButtons from './Buttons/RecordButtons';
 import axiosServer from '../../clients/axios/axiosClient';
-import AudioControls from '../../ComponentsUI/AudioControls/AudioControls';
+import AudioControls from '../../Components/AudioControls/AudioControls';
 import AudiooWaveform from './UI/AudioWaveform/AudioWaveform';
 
 let audioCtx;

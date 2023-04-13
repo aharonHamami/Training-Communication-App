@@ -13,7 +13,22 @@ import InfoCard from "../../../ComponentsUI/InfoCard/InfoCard";
 import axiosServer from "../../../clients/axios/axiosClient";
 import { connect } from '../../../store/slices/authSlice';
 
-const Registration = (props) => {
+const changeValue = (setInputs, index, value) => {
+    setInputs(state => {
+        const newArray = [...state];
+        newArray[index] = {
+            ...newArray[index],
+            value: value,
+            validation: {
+                ...newArray[index].validation,
+                isValid: state[index].validation.pattern.test(value)
+            }
+        }
+        return newArray;
+    });
+};
+
+const Registration = () => {
     
     const [inputArray, setInputarray] = useState([
         {
@@ -46,21 +61,6 @@ const Registration = (props) => {
     const dispatch = useDispatch();
     
     const navigate = useNavigate();
-    
-    const changeValue = useCallback((inputs, setInputs, index, value) => {
-        const valueValidation = inputs[index].validation.pattern.test(value);
-        
-        const newArray = [...inputs];
-        newArray[index] = {
-            ...newArray[index],
-            value: value,
-            validation: {
-                ...newArray[index].validation,
-                isValid: valueValidation
-            }
-        }
-        setInputs(newArray);
-    }, []);
     
     const formSubmitted = useCallback((inputs) => {
         // event.preventDefault();
@@ -122,7 +122,7 @@ const Registration = (props) => {
             <form className={classes.logInForm}>
                 <h2>log in</h2>
                 <InputList inputArray={inputArray}
-                    setValue={(index, value) => {changeValue(inputArray, setInputarray, index, value)}} />
+                    setValue={(index, value) => {changeValue(setInputarray, index, value)}} />
                 <p style={{color: 'red'}}>{errorMessage}</p>
             </form>
             <Box sx={{marginTop: '15px'}}>
