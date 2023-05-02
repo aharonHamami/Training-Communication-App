@@ -7,6 +7,11 @@ export default class RtcClient {
     #usersPeerMap;
     #socket;
     
+    /**
+     * initial the client and start a connection to the signaling server
+     * @constructor
+     * @param {{signalingServer, webRtcServers}} servers - the servers information
+     */
     constructor(servers) {
         this.#connected = false;
         
@@ -52,6 +57,11 @@ export default class RtcClient {
         }
     }
     
+    /**
+     * connect to the server and get peer connection to other users
+     * @param {{userId, roomId}} auth - authentication information
+     * @param {MediaStream} stream - the media stream of the user
+     */
     async connect(auth, stream) {
         this.#localStream = stream;
         
@@ -95,7 +105,7 @@ export default class RtcClient {
         });
         
         this.#socket.on('message-from-peer', async (userId, message) => {
-            console.log(`member ${userId} sent message`, message);
+            console.log(`member ${userId} sent a message`, message);
             switch(message.type) {
                 case 'offer':
                     await this.#createPeerConnection(userId);

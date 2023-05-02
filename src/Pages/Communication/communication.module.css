@@ -46,3 +46,10 @@
     gap: 15px;
     box-sizing: border-box;
 }
+
+.communication .mainArea .controlPanel .controlButtons {
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    /* background-color: blue; */
+}

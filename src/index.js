@@ -7,14 +7,18 @@ import reportWebVitals from './reportWebVitals';
 import { BrowserRouter } from 'react-router-dom';
 import { Provider } from 'react-redux';
 
+// import
 import store from './store/store';
+import { NotificationProvider } from './ComponentsUI/Modals/Notification/Notification';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 
 const app = (
   <Provider store={store}>
     <BrowserRouter>
-      <App />
+      <NotificationProvider>
+        <App />
+      </NotificationProvider>
     </BrowserRouter>
   </Provider>
 );

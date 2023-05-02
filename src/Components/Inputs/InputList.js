@@ -5,6 +5,8 @@ import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem'; // for 'Select'
 import Box from '@mui/material/Box';
 
+// import StyledInput from './StyledInput';
+
 const InputList = (props) => {
     
     function getInput(obj, index) {
@@ -20,6 +22,10 @@ const InputList = (props) => {
                             label={obj.label} value={obj.value} error={!isValid}
                             onChange={event => {props.setValue(index, event.target.value)}} variant="outlined"
                             />
+                // return <StyledInput
+                //             key={'input_'+index}
+                //             pattern={obj.validation.pattern}
+                //             />
             case 'password':
                 return <TextField
                             key={'input_'+index}

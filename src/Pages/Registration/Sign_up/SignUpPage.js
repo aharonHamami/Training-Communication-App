@@ -7,7 +7,7 @@ import { useState, useCallback } from "react";
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 
-import InputList from "../../../Components/InputList/InputList";
+import InputList from "../../../Components/Inputs/InputList";
 import InfoCard from "../../../ComponentsUI/InfoCard/InfoCard";
 import axiosServer from '../../../clients/axios/axiosClient';
 import { connect } from '../../../store/slices/authSlice';
@@ -142,7 +142,7 @@ const Registration = () => {
     
     return <>
         <div className={classes.registerPage}>
-            <div style={{width: '100%'}}>
+            <div style={{width: '100%', paddingTop: '30px'}}>
                 <InfoCard>
                     {content}
                 </InfoCard>

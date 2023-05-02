@@ -7,6 +7,7 @@ import { CircularProgress } from '@mui/material';
 
 import UsersList from './UsersList/UsersList';
 import axiosServer from '../../clients/axios/axiosClient';
+import { useNotify } from '../../ComponentsUI/Modals/Notification/Notification';
 
 const UsersManagement = () => {
     
@@ -14,6 +15,7 @@ const UsersManagement = () => {
     const [error, setError] = useState(null);
     
     const authState = useSelector(state => state.auth);
+    const notify = useNotify();
     
     useEffect(() => {
         if(!authState || !authState.admin) {
@@ -36,9 +38,11 @@ const UsersManagement = () => {
                 )));
             })
             .catch(error => {
-                console.error(error);
-                
+                console.error("Error: couldn't get users info\n", error);
+                setError("Error: couldn't get users info");
             });
+    // ignore warning
+    // eslint-disable-next-line
     }, [authState]);
     
     const handleRemoveClicked = useCallback((userIndex) => {
@@ -61,12 +65,12 @@ const UsersManagement = () => {
                     })
                     .catch(error => {
                         console.error("couldn't delete user", error);
-                        if(error.message) {
-                            setError(error.message);
-                        }
+                        notify("Error: couldn't delete the user");
                     });
             }
         }
+    // ignore warning
+    // eslint-disable-next-line
     }, [users, authState.token]);
     
     const handleEdit = useCallback((index, updateInfo) => {
@@ -112,7 +116,7 @@ const UsersManagement = () => {
         {!authState.admin ? <Navigate to='/' replace/> : null}
         <div className={classes.usersPage}>
             <h1>Users management</h1>
-            {error ? <p style={{color: 'red'}}>error</p> : null}
+            {error ? <p style={{color: 'red'}}>{error}</p> : null}
             {content}
         </div>
     </>

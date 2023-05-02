@@ -1,10 +1,9 @@
 import { useState, useCallback } from 'react';
 import { Button } from '@mui/material'; // ButtonGroup
 
-import InputList from '../../../../../Components/InputList/InputList';
+import InputList from '../../../../../Components/Inputs/InputList';
 
 const UserForm = (props) => {
-    
     const [fields, setFields] = useState([
         {
             type: 'text-field',
@@ -51,8 +50,7 @@ const UserForm = (props) => {
         }
     ]);
     
-    const changeValue = useCallback((inputs, setInputs, index, value) => {
-        console.log('change');
+    const handleChange = useCallback((inputs, setInputs, index, value) => {
         const valueValidation = inputs[index].validation.pattern.test(value);
         
         const newArray = [...inputs];
@@ -69,7 +67,6 @@ const UserForm = (props) => {
     
     const handleSubmit = useCallback((event, finalFields) => {
         event.preventDefault();
-        console.log('submit')
         const userInfo = finalFields.reduce((info, current) => ({...info, [current.name]: current.value}), {});
         
         // checking validations:
@@ -87,7 +84,7 @@ const UserForm = (props) => {
             <div style={{display: 'flex', flexDirection: 'column', gap: "10px"}}>
                 <p><b>User Id:</b> {props.information.id}</p>
                 <p><b>Email:</b> {props.information.email}</p>
-                <InputList inputArray={fields} setValue={(index, value) => {changeValue(fields, setFields, index, value)}} />
+                <InputList inputArray={fields} setValue={(index, value) => {handleChange(fields, setFields, index, value)}} />
             </div>
             <Button 
                 variant='contained' color='success' style={{margin: '10px 0'}} type='submit'

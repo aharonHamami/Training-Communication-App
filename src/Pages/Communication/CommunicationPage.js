@@ -3,7 +3,7 @@ import classes from './communication.module.css';
 import { useState, useEffect, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { Navigate } from 'react-router-dom';
-import CircularProgress from '@mui/material/CircularProgress';
+import { CircularProgress, IconButton } from '@mui/material';
 import { Mic, RadioButtonChecked, Download, Upload } from '@mui/icons-material';
 
 import RtcClient from '../../clients/WebRtcClient/webrtcClient';
@@ -11,6 +11,7 @@ import axiosServer from '../../clients/axios/axiosClient';
 import SidePanel from '../../ComponentsUI/Sidebar/SidePanel';
 import UserButtons from './Buttons/UserButtons';
 import SoundButtons from './Buttons/SoundButtons';
+import { useNotify } from '../../ComponentsUI/Modals/Notification/Notification';
 
 const servers = {
     signalingServer: {
@@ -30,7 +31,7 @@ const DEFAULT_MIC_ENABLE = false;
 
 let audioContext; // for mixing streams
 // context destinations:
-let noiseStreamtDest;   // for audio context - noise effects
+let noiseStreamDest;   // for audio context - noise effects
 let localStreamDest;   // for audio context - noise effects + localStream
 let recordStreamDest;  // for audio context - noise effects + localStream + members stream
 
@@ -50,6 +51,7 @@ const Communication = () => {
     const [messages, setMessages] = useState([]);
     
     const authState = useSelector(state => state.auth);
+    const notify = useNotify();
     
     const updateSound = useCallback((index, info) => {
         setSoundsInfoList(state => {
@@ -107,23 +109,38 @@ const Communication = () => {
                     
                     audioContext = new AudioContext();
                     
+                    if(authState.admin) {
+                        // << Error im FireFox - can not merge with local stream >>
+                        noiseStreamDest = audioContext.createMediaStreamDestination();
+                        // to hear the self noise
+                        const noiseAudio = new Audio();
+                        noiseAudio.volume = 0.5;
+                        noiseAudio.srcObject = noiseStreamDest.stream;
+                        noiseAudio.play();
+                    }
+                    
                     // local stream destination:
                     localStreamDest = audioContext.createMediaStreamDestination();
                     audioContext.createMediaStreamSource(stream).connect(localStreamDest);
+                    if(authState.admin) {
+                        audioContext.createMediaStreamSource(noiseStreamDest.stream).connect(localStreamDest);
+                    }
                     
                     // record destination:
                     recordStreamDest = audioContext.createMediaStreamDestination();
                     audioContext.createMediaStreamSource(localStreamDest.stream).connect(recordStreamDest);
                     
+                    
                     if(authState.admin) {
-                        // noise sound effects destination:
-                        noiseStreamtDest = audioContext.createMediaStreamDestination();
-                        audioContext.createMediaStreamSource(noiseStreamtDest.stream).connect(localStreamDest);
-                        // to hear the self noise
-                        const noiseAudio = new Audio();
-                        noiseAudio.volume = 0.5;
-                        noiseAudio.srcObject = noiseStreamtDest.stream;
-                        noiseAudio.play();
+                        // // noise sound effects destination:
+                        // noiseStreamtDest = audioContext.createMediaStreamDestination();
+                        // audioContext.createMediaStreamSource(noiseStreamtDest.stream).connect(localStreamDest);
+                        // // to hear the self noise
+                        // const noiseAudio = new Audio();
+                        // noiseAudio.volume = 0.5;
+                        // noiseAudio.srcObject = noiseStreamtDest.stream;
+                        // noiseAudio.play();
+                        // // audioContext.createMediaStreamSource(noiseStreamtDest.stream).connect(audioContext.destination);
                         
                         // // osscillator: delete later
                         // const oscillator = audioContext.createOscillator();
@@ -237,7 +254,8 @@ const Communication = () => {
                     }
                 })
                 .catch(error => {
-                    console.log('Server error: ', error);
+                    console.error('Server error: ', error);
+                    notify("Error: couldn't get the audio from the server");
                 });
         }
         
@@ -245,9 +263,11 @@ const Communication = () => {
             client.disconnect();
             
             // disabling my tracks
-            localStream.getTracks().forEach(track => {
-                track.stop();
-            });
+            if(localStream) {
+                localStream.getTracks().forEach(track => {
+                    track.stop();
+                });
+            }
             
             // close all streams - including noise audio
             audioContext.close();
@@ -258,6 +278,8 @@ const Communication = () => {
                 URL.revokeObjectURL(url);
             }
         }
+    // ignore warning
+    // eslint-disable-next-line
     }, [authState]);
     
     // handle microphone
@@ -293,7 +315,7 @@ const Communication = () => {
             
             mediaRecorder.onstop = (e) => {
                 console.log('recording stopped, chunks: ', chunks);
-                const blob = new Blob(chunks, {type: "audio/ogg; codecs=opus"}); // blob is a file type? // audio/mpeg
+                const blob = new Blob(chunks, {type: "audio/ogg; codecs=opus"}); // audio/ogg
                 chunks = []; // initialing the chunks again
                 const audioURL = URL.createObjectURL(blob); // converting blob into URL
                 // console.log('record url: ', audioURL);
@@ -310,6 +332,11 @@ const Communication = () => {
         }
     }, [recordUrl, recEnabled]);
     
+    /**
+     * load audio files from the server
+     * @param {String} path - path to the server who has the audio
+     * @returns a Promise of the audio loaded
+     */
     const loadAudio = useCallback(async (path) => {
         return axiosServer.get(path,
         {responseType: 'arraybuffer', headers: {'Authentication': authState.token}})
@@ -320,7 +347,6 @@ const Communication = () => {
                 const url = URL.createObjectURL(blob);
                 urlList.push(url);
                 // window.open(url);
-                console.log('return actual audio');
                 const audio = new Audio(url);
                 return Promise.resolve(audio);
             })
@@ -352,9 +378,9 @@ const Communication = () => {
                     soundAudio.crossOrigin = "anonymous"; // preventing error of mutated audio (CORS access restrictions)
                     
                     try {
-                        audioContext.createMediaElementSource(soundAudio).connect(noiseStreamtDest);
+                        audioContext.createMediaElementSource(soundAudio).connect(noiseStreamDest);
                     }catch (e) {
-                        console.log(e);
+                        console.error("couldn't connect stream", e);
                     }
                     
                     soundAudio.play();
@@ -362,7 +388,7 @@ const Communication = () => {
                     updateSound(soundIndex, {play: true, audio: soundAudio});
                 })
                 .catch(error => {
-                    console.log("couldn't get audio properly: ", error);
+                    console.error("couldn't get audio properly: ", error);
                 });
         }
     }, [loadAudio, updateSound]);
@@ -383,8 +409,11 @@ const Communication = () => {
                 console.log('server response: ', response);
             })
             .catch(error => {
-                console.log("Couldn't upload the file: ", error);
+                console.error("Couldn't upload the file: ", error);
+                notify("Couldn't upload the file");
             });
+    // ignore the warning
+    // eslint-disable-next-line
     }, [authState.token, recordUrl]);
     
     const handleUploadSound = useCallback(() => {
@@ -418,11 +447,14 @@ const Communication = () => {
                     addNewSounds(newRecordNames);
                 })
                 .catch(error => {
-                    console.log("Couldn't send the files: ", error);
+                    console.error("Couldn't send the files: ", error);
+                    notify("Error: couldn't upload the new noises");
                 });
         }
         
         input.click(); // to emit the onchange event
+    // ignore the warning
+    // eslint-disable-next-line
     }, [addNewSounds, authState.token]);
     
     const usersButtons = <UserButtons usersInfo={usersInfo} />
@@ -467,10 +499,14 @@ const Communication = () => {
                     {messages.map((message, index) => <p key={`message_${index}`}>{message}</p>)}
                 </div>
                 <div className={classes.controlPanel}>
-                    <div style={{display: 'flex', flexDirection: 'row', gap: '20px'}}>
-                        <div onClick={handleMicPressed} ><Mic color={(micEnabled?'success':'error')} /></div>
-                        <button>speak to selected group</button>
-                        <div onClick={handleRecordPressed} ><RadioButtonChecked color={recEnabled ? 'error' : 'none'}/></div>
+                    <div className={classes.controlButtons}>
+                        <IconButton size='large' onClick={handleMicPressed}>
+                            <Mic color={(micEnabled?'success':'error')} fontSize='large'/>
+                        </IconButton>
+                        {/* <button>speak to selected group</button> */}
+                        <IconButton size='large' onClick={handleRecordPressed}>
+                            <RadioButtonChecked color={recEnabled ? 'error' : 'none'} fontSize='large'/>
+                        </IconButton>
                     </div>
                     <div style={{display: 'flex', flexDirection: 'row', gap: '20px'}}>
                         {recordControls}

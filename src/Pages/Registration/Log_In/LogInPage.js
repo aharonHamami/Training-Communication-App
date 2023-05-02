@@ -8,7 +8,7 @@ import { useState, useCallback } from "react";
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 
-import InputList from "../../../Components/InputList/InputList";
+import InputList from "../../../Components/Inputs/InputList";
 import InfoCard from "../../../ComponentsUI/InfoCard/InfoCard";
 import axiosServer from "../../../clients/axios/axiosClient";
 import { connect } from '../../../store/slices/authSlice';
@@ -38,7 +38,7 @@ const Registration = () => {
             value: '',
             validation: {
                 isValid: true,
-                pattern: /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, // email pattern
+                pattern: /^\w+([-.]?\w+)+@([\w-]+\.)+[\w-]{2,4}$/, // email pattern
                 errorMessage: 'please write a valid email'
             }
         },
@@ -59,7 +59,6 @@ const Registration = () => {
     const [isLoading, setIsLoading] = useState(false);
     
     const dispatch = useDispatch();
-    
     const navigate = useNavigate();
     
     const formSubmitted = useCallback((inputs) => {
@@ -107,7 +106,7 @@ const Registration = () => {
                     && 'message' in error.response.data ){
                             setErrorMessage(error.response.data.message);
                 }else {
-                    setErrorMessage(error.message);
+                    setErrorMessage("Something went wrong, try again later");
                 }
                 
                 setIsLoading(false);
@@ -134,7 +133,7 @@ const Registration = () => {
     
     return <>
         <div className={classes.registerPage}>
-            <div style={{width: '100%'}}>
+            <div style={{width: '100%', paddingTop: '30px'}}>
                 <InfoCard>
                     {content}
                 </InfoCard>

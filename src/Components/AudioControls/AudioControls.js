@@ -23,10 +23,13 @@ const Controls = (props) => {
     const [playbackRate, setPlaybackRate] = useState('x1');
     
     const handleSliderChanged = (value) => {
-        props.audioRef.current.currentTime = value;
+        // warning: don't change this line to global audio variable - need to stay updated
+        const audio = props.audioRef.current;
+        audio.currentTime = value;
     };
     
     const handlePlayPressed = (event) => {
+        // warning: don't change this line to global audio variable - need to stay updated
         const audio = props.audioRef.current;
         if(isPlaying(audio)) {
             audio.pause();
@@ -37,6 +40,7 @@ const Controls = (props) => {
     };
     
     const handleSpeedPressed = (faster) => {
+        // warning: don't change this line to global audio variable - need to stay updated
         const audio = props.audioRef.current;
         if(faster && audio.playbackRate < 1.5) {
             audio.playbackRate += 0.5;
@@ -48,7 +52,9 @@ const Controls = (props) => {
     }
     
     const handleSkipPressed = (time) => {
-        props.audioRef.current.currentTime += time;
+        // warning: don't change this line to global audio variable - need to stay updated
+        const audio = props.audioRef.current;
+        audio.currentTime += time;
     }
     
     return <>

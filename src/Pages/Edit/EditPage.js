@@ -1,27 +1,78 @@
 import classes from './edit.module.css';
 
-import { CircularProgress } from '@mui/material';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { Navigate } from 'react-router-dom';
+import { CircularProgress } from '@mui/material';
 
 import Menubar from '../../Components/Menubar/Menubar';
 import SidePanel from "../../ComponentsUI/Sidebar/SidePanel";
 import RecordButtons from './Buttons/RecordButtons';
 import axiosServer from '../../clients/axios/axiosClient';
 import AudioControls from '../../Components/AudioControls/AudioControls';
-import AudiooWaveform from './UI/AudioWaveform/AudioWaveform';
+import AudioWaveform from './UI/AudioWaveform/AudioWaveform';
+import { useNotify } from '../../ComponentsUI/Modals/Notification/Notification';
 
 let audioCtx;
 let urlList;
 
+function audioBufferToOggBlob(audioBuffer) {
+    return new Promise((resolve, reject) => {
+        console.log('change buffer to blob');
+        const source = audioCtx.createBufferSource();
+        source.buffer = audioBuffer;
+        const destination = audioCtx.createMediaStreamDestination();
+        source.connect(destination);
+        // (new AudioContext()).createBufferSource().on
+        const mediaRecorder = new MediaRecorder(destination.stream);
+        const chunks = [];
+        
+        mediaRecorder.ondataavailable = event => {
+            console.log('data available');
+            chunks.push(event.data);
+        };
+
+        mediaRecorder.onstop = () => {
+            console.log('stopped recording');
+            const blob = new Blob(chunks, { type: 'audio/ogg' });
+            resolve(blob);
+        };
+
+        console.log('start recording');
+        mediaRecorder.start(); // start recording
+        // const source = audioCtx.createBufferSource();
+        // source.buffer = audioBuffer;
+        // source.connect(mediaRecorder);
+        source.start(); // start stream
+        source.onended = () => {
+            console.log('ended');
+            mediaRecorder.stop();
+        }
+    });
+}
+
+// data-title={classes.dot_flashing}
+const dotFlasingAnimation = <div className={classes.col_3}>
+    <div className={classes.snippet} >
+        <div className={classes.stage}>
+            <div className={classes.dot_flashing}></div>
+        </div>
+    </div>
+</div>;
+
 const Edit = () => {
+    // page settings:
     const [recordsInfo, setRecordsInfo] = useState(null); // [{name: 'name', recordName: 'record.mp3', audio: audioObj, waveform: waveformData}]
     const [recordIndex, setRecordIndex] = useState(-1);
+    const [reduceNoise, setReduceNoise] = useState(false);
+    // audio controls settings:
     const [sliderValue, setSliderValue] = useState(0);
     const [maxValue, setMaxValue] = useState(100);
+    // audio waveform settings:
+    const [range, setRange] = useState([0, 20]);
     
     const authState = useSelector(state => state.auth);
+    const notify = useNotify();
     
     // to avoid problems and ensure this object is never changed due to React's re-renders
     const currentAudioRef = useRef(null);
@@ -67,7 +118,8 @@ const Edit = () => {
                                     addNewRecords(newRecordNames);
                                 })
                                 .catch(error => {
-                                    console.log("Couldn't send the files: ", error);
+                                    console.error("Couldn't send the files: ", error);
+                                    notify("Couldn't upload new recordings");
                                 });
                         }
                         
@@ -119,7 +171,7 @@ const Edit = () => {
             }
             return [...state, ...newRecordsInfo];
         });
-    }, [setRecordsInfo]);
+    }, []);
     
     const updateRecord = useCallback((index, info) => {
         setRecordsInfo(state => {
@@ -127,7 +179,7 @@ const Edit = () => {
             newRecordsInfo[index] = {...newRecordsInfo[index], ...info};
             return newRecordsInfo;
         });
-    }, [setRecordsInfo]);
+    }, []);
     
     // get the records from the server
     useEffect(() => {
@@ -151,7 +203,8 @@ const Edit = () => {
                 }
             })
             .catch(error => {
-                console.log("Error: couldn't get record names from server: \n", error);
+                console.error("Error: couldn't get record names from server: \n", error);
+                notify("Error: couldn't get record names from server");
             });
         
         return () => {
@@ -160,6 +213,8 @@ const Edit = () => {
                 URL.revokeObjectURL(url);
             }
         }
+    // ignore warning
+    // eslint-disable-next-line
     }, [authState, addNewRecords]);
     
     // handle the audio selected
@@ -169,8 +224,17 @@ const Edit = () => {
             currentAudioRef.current = currentRecordInfo.audio;
             
             currentAudioRef.current.onloadedmetadata = () => {
-                console.log('duration: ', currentAudioRef.current.duration);
-                setMaxValue(currentAudioRef.current.duration);
+                if (currentAudioRef.current.duration !== Infinity) {
+                    setMaxValue(currentAudioRef.current.duration);
+                }else {
+                    // Temporary fix for a bug in Chrome and Edge:
+                    setMaxValue(0);
+                    currentAudioRef.current.currentTime = 10000000; // play with the time to 'wake up' the duration
+                    setTimeout(() => {
+                        currentAudioRef.current.currentTime = 0;
+                        setMaxValue(currentAudioRef.current.duration);
+                    }, 500);
+                }
             }
             
             currentAudioRef.current.ontimeupdate = () => {
@@ -195,6 +259,7 @@ const Edit = () => {
                 urlList.push(url);
                 // window.open(url);
                 const recordAudio = new Audio(url);
+                recordAudio.preload = 'metadata'; // test
                 updateRecord(index, {audio: recordAudio});
                 
                 // need to be called before making a blob from the arraBuffer
@@ -238,29 +303,41 @@ const Edit = () => {
     
     const handleFftPressed = useCallback((records, index) => {
         console.log('calculate FFT');
-        const waveform = records[index].waveform;
+        let waveform = records[index].waveform;
         
+        setReduceNoise(true);
         axiosServer.post('/editing/edit/calculateFFT', {signal: waveform},
         {headers: {'Authentication': authState.token}})
             .then(response => {
                 fftRef.current = response.data.FFT;
                 
                 console.log('server response: ', response.data);
-                let fftWaveform = response.data.FFT.map(cmplxNum => Math.sqrt(cmplxNum.re**2 + cmplxNum.im**2));
-                // fftWaveform = fftWaveform.slice(0, fftWaveform.length/2);
+                let fftWaveform = response.data.FFT.map(cmplxNum => Math.sqrt(cmplxNum.re**2 + cmplxNum.im**2)); // abs
+                fftWaveform = fftWaveform.slice(0, fftWaveform.length/2);
                 // fftWaveform = fftWaveform.slice(fftWaveform.length/10, fftWaveform.length - fftWaveform.length/10);
+                
+                // adjust the signal to show it in the waveform graph
                 const max = fftWaveform.reduce((max, currentValue) => Math.max(max, currentValue));
                 fftWaveform = fftWaveform.map(val => val/max);
                 
+                // console.log('fft waveform: ', fftWaveform);
+                
                 updateRecord(index, {waveform: fftWaveform});
+                setReduceNoise(false);
             })
             .catch(error => {
-                console.log("Couldn't get dtf info from the server:\n", error);
+                console.error("Couldn't get fft info from the server:\n", error);
+                notify("Error: Couldn't get FFT from the server");
+                setReduceNoise(false);
             });
-    }, [authState.token, updateRecord]);;
+    // ignore warning
+    // eslint-disable-next-line
+    }, [authState.token, updateRecord]);
     
     const handleIfftPressed = useCallback((index) => {
         console.log('calculate IFFT');
+        
+        setReduceNoise(true);
         axiosServer.post('/editing/edit/calculateIFFT', {frequencies: fftRef.current},
         {headers: {'Authentication': authState.token}})
             .then(response => {
@@ -281,21 +358,41 @@ const Edit = () => {
                 source.start();
                 
                 updateRecord(index, {waveform: signal});
+                setReduceNoise(false);
             })
             .catch(error => {
                 console.log("Couldn't get dtf info from the server:\n", error);
+                notify("Error: Couldn't get IFFT from the server");
+                setReduceNoise(false);
             });
+    // ignore warning
+    // eslint-disable-next-line
     }, [authState.token, updateRecord]);
     
     const handleReduceNoise = useCallback((records, index) => {
         console.log('reduce noise');
         const waveform = records[index].waveform;
         
+        // convert percentage from range to an index in the channel data
+        const percentageToIndex = (value) => {
+            const waveformSize = waveform.length;
+            return Math.floor(waveformSize * (value/100));
+        }
+        
+        const domain = {
+            start: percentageToIndex(range[0]),
+            size: percentageToIndex(range[1] - range[0])
+        }
+        
+        console.log('domain: ', domain);
+        
+        setReduceNoise(true);
         axiosServer.post('/editing/edit/removeNoise',
             {
                 signal: waveform,
                 speachDomain: {start: 0, size: waveform.length},
-                noiseDomain: {start: 0, size: 2**10} // noise needs to be a power of 2
+                // noiseDomain: {start: 7000, size: 2**10} // noise needs to be a power of 2
+                noiseDomain: domain
             },
             {headers: {'Authentication': authState.token}})
             .then(response => {
@@ -306,48 +403,79 @@ const Edit = () => {
                     return sample.re
                 });
                 
-                // playing the signal:
-                const myArrayBuffer = audioCtx.createBuffer(1, signal.length, audioCtx.sampleRate);
+                // save the signal:
+                const audioBuffer = audioCtx.createBuffer(1, signal.length, audioCtx.sampleRate);
                 // myArrayBuffer.copyFromChannel(new Float32Array(signal), 0);
-                const nowBuffering = myArrayBuffer.getChannelData(0);
-                for (let i = 0; i < myArrayBuffer.length; i++) {
-                    nowBuffering[i] = signal[i];
+                const audioData = audioBuffer.getChannelData(0);
+                // copy the signal to the audio buffer:
+                for (let i = 0; i < audioBuffer.length; i++) {
+                    audioData[i] = signal[i];
                 }
-                const source = audioCtx.createBufferSource();
-                source.buffer = myArrayBuffer;
-                source.connect(audioCtx.destination);
-                console.log('start playing...');
-                source.start();
+                // convert audio buffer to blob
+                audioBufferToOggBlob(audioBuffer)
+                    .then(blob => {
+                        console.log('finished');
+                        const audio = currentAudioRef.current;
+                        const newUrl = URL.createObjectURL(blob);
+                        urlList.splice(urlList.indexOf(audio.src), 1, newUrl); // replace the old url
+                        URL.revokeObjectURL(audio.src);
+                        audio.src = newUrl;
+                        setReduceNoise(false);
+                        updateRecord(index, {waveform: signal});
+                    })
+                    .catch(error => {
+                        console.error("Errro - couldn't make a blob: ", error);
+                        setReduceNoise(false);
+                    });
                 
+                const source = audioCtx.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(audioCtx.destination);
+                source.start();
+                setReduceNoise(false);
                 updateRecord(index, {waveform: signal});
             })
             .catch(error => {
-                console.log("Error: couldn't remove noise:\n", error);
+                console.error("Error: couldn't remove the noise:\n", error);
+                notify("Error: Couldn't remove the noise");
+                setReduceNoise(false);
             });
+    // ignore warning
+    // eslint-disable-next-line
     }, [authState.token, updateRecord]);
     
     let recordButtons = <CircularProgress />;
     if(recordsInfo) {
         recordButtons = <RecordButtons recordsInfo={recordsInfo} 
-                                    onPress={(index) => (handleRecordPressed(recordsInfo, index))} />;
+                            onPress={(index) => (handleRecordPressed(recordsInfo, index))} />;
     }
     
-    let content = <h3>Choose a file</h3>
+    let content = <p style={{margin: 'auto'}}>No file selected</p>
     if(recordIndex >= 0) {
         content = <>
             <h1>Audio Explorer</h1>
             
             <div className={classes.infoPanel}>
-                <button onClick={() => {handleFftPressed(recordsInfo, recordIndex)}}>calculate fft</button>
-                <button onClick={() => {handleIfftPressed(recordIndex)}}>calculate ifft</button>
-                <AudiooWaveform audio={recordsInfo[recordIndex]} />
-                <button onClick={() => {handleReduceNoise(recordsInfo, recordIndex)}}>reduce noise</button>
+                <AudioWaveform audio={recordsInfo[recordIndex]} range={range} changeRange={setRange} />
+                <div style={{display: 'flex', flexDirection: 'row', gap: '5px'}}>
+                    {
+                        !reduceNoise ?
+                        <>
+                            <button onClick={() => {handleFftPressed(recordsInfo, recordIndex)}}>calculate fft</button>
+                            <button onClick={() => {handleIfftPressed(recordIndex)}}>calculate ifft</button>
+                            <button onClick={() => {handleReduceNoise(recordsInfo, recordIndex)}}>reduce noise</button>
+                        </>
+                        : <div style={{marginTop: '10px'}}>{dotFlasingAnimation}</div>
+                    }
+                </div>
+                
             </div>
             
             <AudioControls 
                 audioRef={currentAudioRef}
                 value={sliderValue}
                 duration={maxValue}
+                // !! need to find a better solution to duration
                  />
                 
             <h2>{recordsInfo[recordIndex].name}</h2>
@@ -369,7 +497,9 @@ const Edit = () => {
                 </div>
                 
                 {/* main window */}
-                <div className={classes.mainArea}>{content}</div>
+                <div className={classes.mainArea}>
+                    {content}
+                </div>
             </div>
         </div>
     </>;
