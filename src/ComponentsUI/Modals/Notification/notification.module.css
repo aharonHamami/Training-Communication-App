@@ -5,10 +5,10 @@
     gap: 5px;
     position: fixed; /*using the top and the left relative to a specific point. in this case, relative to the screen*/
     z-index: 500; /*put this components above other components that below index 500*/
-    color: #b13a38;
-    background-color: #ecc8c5;
+    color: #79777b;
+    background-color: #eeeeee;
     width: 40%;
-    border: 1px solid #bfa4a5;
+    border: 1px solid #555555;
     border-radius: 10px;
     box-shadow: 1px 1px 1px black;
     padding: 16px;
@@ -16,6 +16,30 @@
     top: 25px;
     box-sizing: border-box;
     transition: all 0.3s ease-out; /*transition - make a smooth effect when (all|width|color) changes, in 0.3 seconds, ease-out - make it slow at the end*/
+}
+
+.modal.success {
+    color: #556a4d;
+    background-color: #c4ebb2;
+    border: 1px solid #597c4c;
+}
+
+.modal.info {
+    color: #426782;
+    background-color: #cce8f4;
+    border: 1px solid #a8beca;
+}
+
+.modal.warning {
+    color: #856e45;
+    background-color: #f7f4d5;
+    border: 1px solid #d8d1bb;
+}
+
+.modal.error {
+    color: #b13a38;
+    background-color: #ecc8c5;
+    border: 1px solid #bfa4a5;
 }
 
 .modal img {

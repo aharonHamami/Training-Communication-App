@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { Navigate } from 'react-router-dom';
 import { CircularProgress, IconButton } from '@mui/material';
-import { Mic, RadioButtonChecked, Download, Upload } from '@mui/icons-material';
+import { Mic, RadioButtonChecked, Download, Upload, CheckCircle } from '@mui/icons-material';
 
 import RtcClient from '../../clients/WebRtcClient/webrtcClient';
 import axiosServer from '../../clients/axios/axiosClient';
@@ -47,6 +47,7 @@ const Communication = () => {
     const [micEnabled, setMicEnabled] = useState(DEFAULT_MIC_ENABLE);
     const [recEnabled, setRecEnabled] = useState(false);
     const [recordUrl, setRecordUrl] = useState(null);
+    const [recordSent, setRecordSent] = useState(false);
     const [error, setError] = useState(null);
     const [messages, setMessages] = useState([]);
     
@@ -114,7 +115,7 @@ const Communication = () => {
                         noiseStreamDest = audioContext.createMediaStreamDestination();
                         // to hear the self noise
                         const noiseAudio = new Audio();
-                        noiseAudio.volume = 0.5;
+                        noiseAudio.volume = 0.25;
                         noiseAudio.srcObject = noiseStreamDest.stream;
                         noiseAudio.play();
                     }
@@ -130,28 +131,15 @@ const Communication = () => {
                     recordStreamDest = audioContext.createMediaStreamDestination();
                     audioContext.createMediaStreamSource(localStreamDest.stream).connect(recordStreamDest);
                     
-                    
-                    if(authState.admin) {
-                        // // noise sound effects destination:
-                        // noiseStreamtDest = audioContext.createMediaStreamDestination();
-                        // audioContext.createMediaStreamSource(noiseStreamtDest.stream).connect(localStreamDest);
-                        // // to hear the self noise
-                        // const noiseAudio = new Audio();
-                        // noiseAudio.volume = 0.5;
-                        // noiseAudio.srcObject = noiseStreamtDest.stream;
-                        // noiseAudio.play();
-                        // // audioContext.createMediaStreamSource(noiseStreamtDest.stream).connect(audioContext.destination);
-                        
-                        // // osscillator: delete later
-                        // const oscillator = audioContext.createOscillator();
-                        // // oscillator.type = "square";
-                        // // oscillator.frequency.setValueAtTime(440, audioContext.currentTime); // value in hertz
-                        // const gainNode = audioContext.createGain();
-                        // oscillator.connect(gainNode);
-                        // gainNode.gain.volume = 0.1;
-                        // gainNode.connect(noiseStreamtDest);
-                        // oscillator.start();
-                    }
+                    // // osscillator: delete later
+                    // const oscillator = audioContext.createOscillator();
+                    // // oscillator.type = "square";
+                    // // oscillator.frequency.setValueAtTime(440, audioContext.currentTime); // value in hertz
+                    // const gainNode = audioContext.createGain();
+                    // oscillator.connect(gainNode);
+                    // gainNode.gain.volume = 0.1;
+                    // gainNode.connect(noiseStreamtDest);
+                    // oscillator.start();
                     
                     if(!client.isConnected() && myUserInfo.id) {
                         console.log('trying to connect to the server..., info: ', myUserInfo.id);
@@ -255,7 +243,7 @@ const Communication = () => {
                 })
                 .catch(error => {
                     console.error('Server error: ', error);
-                    notify("Error: couldn't get the audio from the server");
+                    notify("Error: couldn't get the audio from the server", 'error');
                 });
         }
         
@@ -393,7 +381,9 @@ const Communication = () => {
         }
     }, [loadAudio, updateSound]);
     
-    const handleUploadRecord = useCallback(async () => {
+    const handleUploadRecord = useCallback(async (event) => {
+        setRecordSent(true);
+        
         let file = await fetch(recordUrl)
                             .then(r => r.blob())
                             .then(blobFile => new File([blobFile], `record_${Date.now()}.ogg`, { type: "audio/ogg" }));
@@ -407,10 +397,12 @@ const Communication = () => {
         axiosServer.post('/editing/records/upload-files', formData, { headers: {'Authentication': authState.token} } /*{onUploadProgress: }*/)
             .then(response => {
                 console.log('server response: ', response);
+                notify('Your record uploaded successfully', 'success');
             })
             .catch(error => {
                 console.error("Couldn't upload the file: ", error);
-                notify("Couldn't upload the file");
+                setRecordSent(false);
+                notify("Couldn't upload the file", 'error');
             });
     // ignore the warning
     // eslint-disable-next-line
@@ -448,7 +440,7 @@ const Communication = () => {
                 })
                 .catch(error => {
                     console.error("Couldn't send the files: ", error);
-                    notify("Error: couldn't upload the new noises");
+                    notify("Error: couldn't upload the new noises", 'error');
                 });
         }
         
@@ -470,7 +462,11 @@ const Communication = () => {
         recordControls = <>
             <audio src={recordUrl} type="audio/ogg" controls />
             <a href={recordUrl} download ><Download style={{height: '100%'}} /></a>
-            <div onClick={handleUploadRecord} ><Upload style={{height: '100%'}} /></div>
+            {
+                !recordSent ?
+                <div onClick={handleUploadRecord} ><Upload style={{height: '100%'}} /></div> :
+                <CheckCircle color='success' style={{height: '100%'}} />
+            }
         </>;
     }
     

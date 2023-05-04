@@ -65,7 +65,7 @@ const UsersManagement = () => {
                     })
                     .catch(error => {
                         console.error("couldn't delete user", error);
-                        notify("Error: couldn't delete the user");
+                        notify("Error: couldn't delete the user", 'error');
                     });
             }
         }

@@ -1,6 +1,9 @@
 import classes from './notification.module.css';
 
-import errorLogo from './error_logo.png';
+import errorLogo from './logo/error_logo.png';
+import successLogo from './logo/success_logo.png';
+import warningLogo from './logo/warning_logo.png';
+import infoLogo from './logo/info_logo.png';
 
 import { useState, createContext, useContext } from 'react';
 
@@ -9,9 +12,35 @@ const NotificationContext = createContext(); // global reference
 export const NotificationProvider = ({ children }) => {
   const [message, setMessage] = useState();
   const [visible, setVisible] = useState(false);
+  const [type, setType] = useState('');
+  const [logo, setLogo] = useState(null);
 
-  const sendNotification = (message) => {
+  const sendNotification = (message, currentType) => {
+    console.log('message type: ', currentType);
     setMessage(message);
+    
+    switch(currentType) {
+      case 'error':
+        setType(classes.error);
+        setLogo(errorLogo);
+        break;
+      case 'success':
+        setType(classes.success);
+        setLogo(successLogo);
+        break;
+      case 'info':
+        setType(classes.info);
+        setLogo(infoLogo);
+        break;
+      case 'warning':
+        setType(classes.warning);
+        setLogo(warningLogo);
+        break;
+      default: 
+        setType('');
+        setLogo(null);
+        break;
+    }
     
     setVisible(true);
     setTimeout(() => {
@@ -21,13 +50,12 @@ export const NotificationProvider = ({ children }) => {
 
   return (
     <NotificationContext.Provider value={sendNotification}>
-        <div 
-            className={classes.modal}
+        <div className={[classes.modal, type].join(' ')}
             style={{
                 transform: visible ? 'translateY(0)' : 'translateY(-200%)',
                 opacity: visible ? '1' : '0'
             }}>
-            <img src={errorLogo} alt='logo' />
+            {logo ? <img src={logo} alt='logo' /> : null}
             {message}
         </div>
         {children}

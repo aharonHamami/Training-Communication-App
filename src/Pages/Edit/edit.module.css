@@ -37,6 +37,11 @@
     color: #4d4d4d;
 }
 
+.editPage .content .mainArea.darkMode {
+    background-color: #404c6d;
+    color: #f9f9f9;
+}
+
 .editPage .content .mainArea .infoPanel {
     display: flex;
     flex-direction: column;
@@ -51,6 +56,7 @@
   padding: 5px 7px;
   user-select: none;
   border-radius: 5px;
+  cursor: pointer;
   background-color: #064c0e;
   color: #f9f9f9;
 }

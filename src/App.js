@@ -26,7 +26,7 @@ function App() {
     axiosServer.interceptors.response.use(null, error => {
       if(error.response && error.response.status === 401){ // Unauthorized
         console.log('user was unauthorized, going back to home page.');
-        notify("You are unauthorized, returning back to home page");
+        notify("You are unauthorized, returning back to home page", 'error');
         dispatch(logOut());
         navigate('/');
       }

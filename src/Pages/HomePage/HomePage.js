@@ -1,11 +1,18 @@
 import classes from './home.module.css';
-import networkImage from './images/network transparent.png';
 
-import { useSelector } from 'react-redux';
+import networkImage from './images/network transparent.png';
+import { logOut } from '../../store/slices/authSlice';
+
+import { useSelector, useDispatch } from 'react-redux';
 import { Link } from 'react-router-dom';
 
 const Page = () => {
     const authState = useSelector(state => state.auth);
+    const dispatch = useDispatch();
+    
+    const handleLogOut = (event) => {
+        dispatch(logOut());
+    }
     
     return <div className={classes.home}>
         <div className={classes.mainWindow}>
@@ -31,6 +38,11 @@ const Page = () => {
                         : null
                     }
                 </div>
+                {
+                    authState.token ?
+                    <p style={{color: 'red', cursor: 'pointer'}} onClick={handleLogOut}>log out</p>
+                    : null
+                }
             </div>
             <div className={classes.leftWindow}>
                 <img src={networkImage} alt="network"></img>

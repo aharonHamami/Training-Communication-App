@@ -38,7 +38,7 @@ const Registration = () => {
             value: '',
             validation: {
                 isValid: true,
-                pattern: /^\w+([-.]?\w+)+@([\w-]+\.)+[\w-]{2,4}$/, // email pattern
+                pattern: /^\w+(?:[.-]\w+)*@\w+(?:[.-]\w+)*(?:\.\w{2,3})+$/, // email pattern
                 errorMessage: 'please write a valid email'
             }
         },

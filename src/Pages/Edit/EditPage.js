@@ -3,7 +3,7 @@ import classes from './edit.module.css';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { Navigate } from 'react-router-dom';
-import { CircularProgress } from '@mui/material';
+import { CircularProgress, Modal } from '@mui/material';
 
 import Menubar from '../../Components/Menubar/Menubar';
 import SidePanel from "../../ComponentsUI/Sidebar/SidePanel";
@@ -11,6 +11,8 @@ import RecordButtons from './Buttons/RecordButtons';
 import axiosServer from '../../clients/axios/axiosClient';
 import AudioControls from '../../Components/AudioControls/AudioControls';
 import AudioWaveform from './UI/AudioWaveform/AudioWaveform';
+import AboutInfo from './modalsInfo/AboutInfo';
+import HowToUseInfo from './modalsInfo/HowToUseInfo';
 import { useNotify } from '../../ComponentsUI/Modals/Notification/Notification';
 
 let audioCtx;
@@ -65,11 +67,13 @@ const Edit = () => {
     const [recordsInfo, setRecordsInfo] = useState(null); // [{name: 'name', recordName: 'record.mp3', audio: audioObj, waveform: waveformData}]
     const [recordIndex, setRecordIndex] = useState(-1);
     const [reduceNoise, setReduceNoise] = useState(false);
+    const [modalInfo, setModalInfo] = useState(null); // about, 
+    const [darkMode, setDarkMode] = useState(false);
     // audio controls settings:
     const [sliderValue, setSliderValue] = useState(0);
     const [maxValue, setMaxValue] = useState(100);
     // audio waveform settings:
-    const [range, setRange] = useState([0, 20]);
+    const [range, setRange] = useState([10, 30]);
     
     const authState = useSelector(state => state.auth);
     const notify = useNotify();
@@ -119,7 +123,7 @@ const Edit = () => {
                                 })
                                 .catch(error => {
                                     console.error("Couldn't send the files: ", error);
-                                    notify("Couldn't upload new recordings");
+                                    notify("Couldn't upload new recordings", 'error');
                                 });
                         }
                         
@@ -133,7 +137,7 @@ const Edit = () => {
             options: [
                 {
                     title: 'dark/light mode',
-                    action: null
+                    action: () => {setDarkMode(state => !state)}
                 }
             ]
         },
@@ -142,11 +146,11 @@ const Edit = () => {
             options: [
                 {
                     title: 'how to use?',
-                    action: null
+                    action: () => {setModalInfo('howToUse')}
                 },
                 {
-                    title: 'about me',
-                    action: null
+                    title: 'about',
+                    action: () => {setModalInfo('about')}
                 },
                 {
                     title: 'open source',
@@ -204,7 +208,7 @@ const Edit = () => {
             })
             .catch(error => {
                 console.error("Error: couldn't get record names from server: \n", error);
-                notify("Error: couldn't get record names from server");
+                notify("Error: couldn't get record names from server", 'error');
             });
         
         return () => {
@@ -327,7 +331,7 @@ const Edit = () => {
             })
             .catch(error => {
                 console.error("Couldn't get fft info from the server:\n", error);
-                notify("Error: Couldn't get FFT from the server");
+                notify("Error: Couldn't get FFT from the server", 'error');
                 setReduceNoise(false);
             });
     // ignore warning
@@ -362,7 +366,7 @@ const Edit = () => {
             })
             .catch(error => {
                 console.log("Couldn't get dtf info from the server:\n", error);
-                notify("Error: Couldn't get IFFT from the server");
+                notify("Error: Couldn't get IFFT from the server", 'error');
                 setReduceNoise(false);
             });
     // ignore warning
@@ -384,7 +388,7 @@ const Edit = () => {
             size: percentageToIndex(range[1] - range[0])
         }
         
-        console.log('domain: ', domain);
+        console.log('slider domain: ', domain);
         
         setReduceNoise(true);
         axiosServer.post('/editing/edit/removeNoise',
@@ -421,7 +425,6 @@ const Edit = () => {
                         URL.revokeObjectURL(audio.src);
                         audio.src = newUrl;
                         setReduceNoise(false);
-                        updateRecord(index, {waveform: signal});
                     })
                     .catch(error => {
                         console.error("Errro - couldn't make a blob: ", error);
@@ -437,17 +440,30 @@ const Edit = () => {
             })
             .catch(error => {
                 console.error("Error: couldn't remove the noise:\n", error);
-                notify("Error: Couldn't remove the noise");
+                notify("Error: Couldn't remove the noise", 'error');
                 setReduceNoise(false);
             });
     // ignore warning
     // eslint-disable-next-line
     }, [authState.token, updateRecord]);
     
+    const handleCloseModal = useCallback(() => { setModalInfo(null) }, []);
+    
     let recordButtons = <CircularProgress />;
     if(recordsInfo) {
         recordButtons = <RecordButtons recordsInfo={recordsInfo} 
                             onPress={(index) => (handleRecordPressed(recordsInfo, index))} />;
+    }
+    
+    let modalContent = null;
+    switch(modalInfo) {
+        case 'about':
+            modalContent = <AboutInfo />;
+            break;
+        case 'howToUse':
+            modalContent = <HowToUseInfo />;
+            break;
+        default: break;
     }
     
     let content = <p style={{margin: 'auto'}}>No file selected</p>
@@ -483,8 +499,18 @@ const Edit = () => {
         </>;
     }
     
+    let contentClass = classes.mainArea;
+    if(darkMode) {
+        contentClass = classes.mainArea + ' ' + classes.darkMode;
+    }
+    
     return <>
         {!authState.admin ? <Navigate to='/' replace/> : null}
+        <Modal open={modalInfo != null} onClose={handleCloseModal}>
+            <div>
+                {modalContent}
+            </div>
+        </Modal>
         <div className={classes.editPage}>
             <Menubar itemsInfo={menuInfoRef.current} />
             <div className={classes.content}>
@@ -497,7 +523,7 @@ const Edit = () => {
                 </div>
                 
                 {/* main window */}
-                <div className={classes.mainArea}>
+                <div className={contentClass}>
                     {content}
                 </div>
             </div>
