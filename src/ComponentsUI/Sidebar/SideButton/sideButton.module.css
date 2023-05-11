@@ -9,6 +9,7 @@
     height: 30px;
     gap: 5px;
     box-sizing: border-box;
+    overflow: hidden;
     align-items: center;
     text-align: left;
 }

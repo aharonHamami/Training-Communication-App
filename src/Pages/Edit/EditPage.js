@@ -305,6 +305,39 @@ const Edit = () => {
         
     }, [loadAudio]);
     
+    const handleRecordDelete = useCallback((records, index) => {
+        const recordInfo = records[index];
+        const name = recordInfo.name;
+        
+        if(window.confirm(`Are you sure you want to delete ${name}?`)) {
+            console.log('delete record: ', name);
+            
+            axiosServer.delete('/editing/records/'+name, {headers: {'Authentication': authState.token}})
+                .then(response => {
+                    console.log('Server response: \n', response);
+                    
+                    // return index to track his record
+                    setRecordIndex(state => {
+                        if(state < index) return state;
+                        if(state === index) return -1;
+                        return state - 1; // if state > index
+                    });
+                    setRecordsInfo(state => {
+                        const newArray = [...state];
+                        newArray.splice(index, 1);
+                        return newArray;
+                    });
+                })
+                .catch(error => {
+                    console.error("couldn't delete the redording", error);
+                    notify("Error: couldn't delete the recording", 'error');
+                });
+        }
+            
+    // ignore warning
+    // eslint-disable-next-line
+    }, [authState.token]);
+    
     const handleFftPressed = useCallback((records, index) => {
         console.log('calculate FFT');
         let waveform = records[index].waveform;
@@ -451,8 +484,9 @@ const Edit = () => {
     
     let recordButtons = <CircularProgress />;
     if(recordsInfo) {
-        recordButtons = <RecordButtons recordsInfo={recordsInfo} 
-                            onPress={(index) => (handleRecordPressed(recordsInfo, index))} />;
+        recordButtons = <RecordButtons recordsInfo={recordsInfo}
+                            onPress={(index) => {handleRecordPressed(recordsInfo, index)}}
+                            onRedocdDelete={(index) => {handleRecordDelete(recordsInfo, index)}} />;
     }
     
     let modalContent = null;
@@ -467,7 +501,7 @@ const Edit = () => {
     }
     
     let content = <p style={{margin: 'auto'}}>No file selected</p>
-    if(recordIndex >= 0) {
+    if(recordIndex >= 0 && recordIndex < recordsInfo.length) {
         content = <>
             <h1>Audio Explorer</h1>
             

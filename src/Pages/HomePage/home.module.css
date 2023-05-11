@@ -20,7 +20,7 @@
     display: flex;
     flex-direction: column;
     gap: 15px;
-    align-items: left;
+    align-items: flex-start;
     text-align: left;
     width: fit-content;
     padding: 50px;
@@ -80,7 +80,7 @@
   color: rgba(0, 0, 0, .3);
 }
 
-.leftWindow {
+.rightWindow {
   display: flex;
   flex-grow: 1;
   justify-content: center;
@@ -88,7 +88,24 @@
   /* background-color: #0A66C2; */
 }
 
-.leftWindow img {
+.rightWindow img {
   width: 80%;
   height: auto;
+}
+
+@media (max-width: 426px) {
+  .mainWindow {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .mainWindow .contentBox {
+    margin: auto;
+    align-items: center;
+  }
+  
+  .leftWindow {
+    max-height: 100vh;
+    overflow-y: auto;
+  }
 }

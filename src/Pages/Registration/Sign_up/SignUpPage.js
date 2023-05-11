@@ -117,7 +117,8 @@ const Registration = () => {
                     && 'message' in error.response.data ){
                             setErrorMessage(error.response.data.message);
                 }else {
-                    setErrorMessage(error.message);
+                    setErrorMessage("Something went wrong, try again later");
+                    setErrorMessage("Something went wrong, try again later");
                 }
                 
                 setIsLoading(false);

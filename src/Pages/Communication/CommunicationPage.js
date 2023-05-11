@@ -42,8 +42,8 @@ let client;
 let urlList;
 
 const Communication = () => {
-    const [usersInfo, setUsersInfo] = useState([]); // [{id: 123, name: 'hello', signed: false}]
-    const [soundsInfoList, setSoundsInfoList] = useState(null); // [{name: 'name', soundName: 'sound.mp3', audio: audioObj, play: false}]
+    const [usersInfo, setUsersInfo] = useState(null); // [{id: 123, name: 'hello', signed: false}]
+    const [soundsInfo, setSoundsInfo] = useState(null); // [{name: 'name', soundName: 'sound.mp3', audio: audioObj, play: false}]
     const [micEnabled, setMicEnabled] = useState(DEFAULT_MIC_ENABLE);
     const [recEnabled, setRecEnabled] = useState(false);
     const [recordUrl, setRecordUrl] = useState(null);
@@ -55,7 +55,7 @@ const Communication = () => {
     const notify = useNotify();
     
     const updateSound = useCallback((index, info) => {
-        setSoundsInfoList(state => {
+        setSoundsInfo(state => {
             const newSoundsInfo = [...state];
             newSoundsInfo[index] = {...newSoundsInfo[index], ...info};
             return newSoundsInfo;
@@ -69,8 +69,8 @@ const Communication = () => {
             audio: null,
             play: false,
         }));
-        setSoundsInfoList(state => {
-            if(!state || !Array.isArray(state)) { // in case these are the first sounds
+        setSoundsInfo(state => {
+            if(!Array.isArray(state)) { // in case these are the first sounds
                 return newSoundsInfo
             }
             return [...state, ...newSoundsInfo];
@@ -94,7 +94,6 @@ const Communication = () => {
             name: authState.name,
             signed: true
         };
-        setUsersInfo([{...myUserInfo, name: myUserInfo.name+' (you)'}]);
         
         // accessing audio in the page:
         if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
@@ -150,6 +149,26 @@ const Communication = () => {
                         }, localStreamDest.stream); // stream
                     }
                     
+                    function handleClientConnected(users) {
+                        const myUser = {...myUserInfo, name: myUserInfo.name+' (you)'};
+                        
+                        const usersArray = users.map(user => ({
+                            id: user.id,
+                            name: user.name,
+                            signed: true
+                        }));
+                        
+                        setUsersInfo(state => {
+                            return [ myUser, ...usersArray ];
+                        });
+                        
+                        const newMessages = users.map(user => `${user.name} is inside the channel`);
+                        setMessages(state => [
+                            ...state,
+                            ...newMessages
+                        ]);
+                    }
+                    
                     function handleNewUsers(users){
                         const usersArray = users.map(user => ({
                             id: user.id,
@@ -157,10 +176,12 @@ const Communication = () => {
                             signed: true
                         }));
                         
-                        setUsersInfo(state => [
-                            ...state,
-                            ...usersArray
-                        ]);
+                        setUsersInfo(state => {
+                            if(!Array.isArray(state)) {
+                                return usersArray;
+                            }
+                            return [ ...state, ...usersArray ];
+                        });
                         
                         const newMessages = users.map(user => `${user.name} joined the channel`);
                         setMessages(state => [
@@ -207,6 +228,7 @@ const Communication = () => {
                         ]);
                     };
                     
+                    client.on('connected', handleClientConnected);
                     client.on('new-users', handleNewUsers);
                     client.on('stream', handleNewStream);
                     client.on('user-left', handleUserLeft);
@@ -236,7 +258,7 @@ const Communication = () => {
                             audio: null,
                             play: false,
                         }));
-                        setSoundsInfoList(newSoundsInfo);
+                        setSoundsInfo(newSoundsInfo);
                     }else {
                         console.log("Error: didn't get a proper response from the server");
                     }
@@ -381,6 +403,33 @@ const Communication = () => {
         }
     }, [loadAudio, updateSound]);
     
+    const handleSoundDelete = useCallback((soundsInfoList, soundIndex) => {
+        const soundInfo = soundsInfoList[soundIndex];
+        const name = soundInfo.name;
+        
+        if(window.confirm(`Are you sure you want to delete ${name}?`)) {
+            console.log('delete record: ', name);
+            
+            axiosServer.delete('/editing/sounds/'+name, {headers: {'Authentication': authState.token}})
+                .then(response => {
+                    console.log('Server response: \n', response);
+                    
+                    setSoundsInfo(state => {
+                        const newArray = [...state];
+                        newArray.splice(soundIndex, 1);
+                        return newArray;
+                    });
+                })
+                .catch(error => {
+                    console.error("couldn't delete the sound", error);
+                    notify("Error: couldn't delete the sound", 'error');
+                });
+        }
+            
+    // ignore warning
+    // eslint-disable-next-line
+    }, [authState.token]);
+    
     const handleUploadRecord = useCallback(async (event) => {
         setRecordSent(true);
         
@@ -449,12 +498,17 @@ const Communication = () => {
     // eslint-disable-next-line
     }, [addNewSounds, authState.token]);
     
-    const usersButtons = <UserButtons usersInfo={usersInfo} />
+    
+    let usersButtons = <CircularProgress />;
+    if(usersInfo) {
+        usersButtons = <UserButtons usersInfo={usersInfo} />;
+    }
     
     let soundButtons = <CircularProgress />;
-    if(soundsInfoList) {
-        soundButtons = <SoundButtons soundsInfo={soundsInfoList}
-                                onSoundPressed={(index) => handlePlaySoundPressed(soundsInfoList, index)} />;
+    if(soundsInfo) {
+        soundButtons = <SoundButtons soundsInfo={soundsInfo}
+                                onSoundPressed={(index) => {handlePlaySoundPressed(soundsInfo, index)}}
+                                onSoundDelete={(index) => {handleSoundDelete(soundsInfo, index)}} />;
     }
     
     let recordControls = null;
@@ -463,9 +517,11 @@ const Communication = () => {
             <audio src={recordUrl} type="audio/ogg" controls />
             <a href={recordUrl} download ><Download style={{height: '100%'}} /></a>
             {
-                !recordSent ?
-                <div onClick={handleUploadRecord} ><Upload style={{height: '100%'}} /></div> :
-                <CheckCircle color='success' style={{height: '100%'}} />
+                authState.admin ?
+                    !recordSent ?
+                    <div onClick={handleUploadRecord} ><Upload style={{height: '100%'}} /></div> :
+                    <CheckCircle color='success' style={{height: '100%'}} />
+                : null
             }
         </>;
     }
@@ -509,7 +565,6 @@ const Communication = () => {
                     </div>
                 </div>
             </div>
-            
         </div>
     </>;
 };

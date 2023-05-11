@@ -16,7 +16,7 @@ const Page = () => {
     
     return <div className={classes.home}>
         <div className={classes.mainWindow}>
-            <div>
+            <div className={classes.leftWindow}>
                 <h1>{authState.name ? `Welcome, ${authState.name}` : "Home Page"}</h1>
                 <h2>choose what you want to do:</h2>
                 <div className={classes.contentBox}>
@@ -44,7 +44,7 @@ const Page = () => {
                     : null
                 }
             </div>
-            <div className={classes.leftWindow}>
+            <div className={classes.rightWindow}>
                 <img src={networkImage} alt="network"></img>
             </div>
         </div>

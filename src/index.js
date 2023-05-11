@@ -6,6 +6,7 @@ import reportWebVitals from './reportWebVitals';
 
 import { BrowserRouter } from 'react-router-dom';
 import { Provider } from 'react-redux';
+import ErrorBoundary from './Components/ErrorBoundary';
 
 // import
 import store from './store/store';
@@ -13,14 +14,21 @@ import { NotificationProvider } from './ComponentsUI/Modals/Notification/Notific
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 
+const fallback = <div>
+  <h2>Something went wrong</h2>
+  <p>Try to come again later</p>
+</div>;
+
 const app = (
-  <Provider store={store}>
-    <BrowserRouter>
-      <NotificationProvider>
-        <App />
-      </NotificationProvider>
-    </BrowserRouter>
-  </Provider>
+  <ErrorBoundary fallback={fallback}>
+    <Provider store={store}>
+      <BrowserRouter>
+        <NotificationProvider>
+          <App />
+        </NotificationProvider>
+      </BrowserRouter>
+    </Provider>
+  </ErrorBoundary>
 );
 
 root.render(app);

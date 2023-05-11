@@ -15,7 +15,16 @@ import UsersManagement from './Pages/UsersManagement/UsersManagementPage';
 import axiosServer from './clients/axios/axiosClient';
 import { logOut } from './store/slices/authSlice';
 import { useNotify } from './ComponentsUI/Modals/Notification/Notification';
+import ErrorBoundary from './Components/ErrorBoundary';
 
+// Error Handler component
+const fallback = <div>
+  <h2>Something went wrong</h2>
+  <a href='/'>load again the page</a>
+  <br/>
+  <a href='/'>report the issue</a> {/* currently doesn't do anything */}
+</div>;
+const EH = (props) => <ErrorBoundary fallback={fallback}>{props.children}</ErrorBoundary>;
 
 function App() {
   const dispatch = useDispatch();
@@ -41,11 +50,11 @@ function App() {
     <div className={classes.App}>
       <Routes>
         <Route path='/' element={<HomePage />} />
-        <Route path='/sign-up' element={<SignUp />} />
-        <Route path='/log-in' element={<LogIn />} />
-        <Route path='/communication' element={<Communication />} />
-        <Route path='/edit' element={<Edit />} />
-        <Route path='/users-management' element={<UsersManagement />} />
+        <Route path='/sign-up' element={<EH> <SignUp /> </EH>} />
+        <Route path='/log-in' element={<EH> <LogIn /> </EH>} />
+        <Route path='/communication' element={<EH> <Communication /> </EH>} />
+        <Route path='/edit' element={<EH> <Edit /> </EH>} />
+        <Route path='/users-management' element={<EH> <UsersManagement /> </EH>} />
         <Route path='/*' element={<h1>no match for this location</h1>} />
       </Routes>
     </div>

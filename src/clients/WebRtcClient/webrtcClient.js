@@ -15,7 +15,7 @@ export default class RtcClient {
     constructor(servers) {
         this.#connected = false;
         
-        this.#listeners = {}; // events: 'stream', 'new-users', 'user-left'
+        this.#listeners = {}; // events: 'connected', 'stream', 'new-users', 'user-left'
         
         this.#localStream = null;
         this.#usersPeerMap = []; // [{id: 'userId', peerConnection: 'rtcPeerConnection', stream: 'stream'}]
@@ -78,7 +78,7 @@ export default class RtcClient {
             
             // console.log('connected users: ', usersArray);
             
-            this.emit('new-users', usersArray);
+            this.emit('connected', usersArray);
         });
         
         this.#socket.on('user-joined', (userId, userName) => {
@@ -145,6 +145,10 @@ export default class RtcClient {
         return this.#connected;
     }
     
+    /**
+     * Create a WebRTC peer connection
+     * @param {String} otherUserId - the membeer id to create the peer with
+     */
     async #createPeerConnection(otherUserId) {
         const peerConnection = new RTCPeerConnection(this.servers.webRtcServers);
         
@@ -157,7 +161,6 @@ export default class RtcClient {
         
         // get the other peer's tracks and add them to his streams
         peerConnection.ontrack = event => {
-            // << need to check about the index of 'RTCTrackEvent.streams' >>
             event.streams[0].getTracks().forEach(track => {
                 console.log('track');
                 remoteStream.addTrack(track);

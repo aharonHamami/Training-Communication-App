@@ -16,7 +16,6 @@ export const NotificationProvider = ({ children }) => {
   const [logo, setLogo] = useState(null);
 
   const sendNotification = (message, currentType) => {
-    console.log('message type: ', currentType);
     setMessage(message);
     
     switch(currentType) {

@@ -50,7 +50,7 @@ const Waveform = (props) => {
             ref={canvasRef}
             width='1000'
             height='300'
-            style={{border: '1px solid black', width: '90%', height: '300px'}}
+            style={{border: '1px solid black', width: '90%', height: '300px', backgroundColor: 'white'}}
         />
         <Slider 
             value={props.range}

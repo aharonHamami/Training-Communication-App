@@ -1,7 +1,10 @@
 import classes from './sideButton.module.css';
 
-// need to add start and end
-
+/**
+ * 
+ * @param {{start, end, onClick}} props
+ * @returns 
+ */
 const SidebarB = (props) => {
     
     let start = null;
@@ -19,9 +22,9 @@ const SidebarB = (props) => {
     }
     
     return (
-        <div className={classes.sideButton} onClick={props.onClick}>
+        <div className={classes.sideButton}>
             {start}
-            <div className={classes.center}>
+            <div className={classes.center} onClick={props.onClick}>
                 {props.children}
             </div>
             {end}
