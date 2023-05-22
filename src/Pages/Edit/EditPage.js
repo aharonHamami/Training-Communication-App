@@ -4,6 +4,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSelector } from 'react-redux';
 import { Navigate } from 'react-router-dom';
 import { CircularProgress, Modal } from '@mui/material';
+import { Download } from '@mui/icons-material';
+import fixWebmDuration from "fix-webm-duration";
 
 import Menubar from '../../Components/Menubar/Menubar';
 import SidePanel from "../../ComponentsUI/Sidebar/SidePanel";
@@ -27,6 +29,7 @@ function audioBufferToOggBlob(audioBuffer) {
         source.connect(destination);
         // (new AudioContext()).createBufferSource().on
         const mediaRecorder = new MediaRecorder(destination.stream);
+        let startRecordTime;
         const chunks = [];
         
         mediaRecorder.ondataavailable = event => {
@@ -35,17 +38,23 @@ function audioBufferToOggBlob(audioBuffer) {
         };
 
         mediaRecorder.onstop = () => {
+            const mediaDuration = Date.now() - startRecordTime;
             console.log('stopped recording');
             const blob = new Blob(chunks, { type: 'audio/ogg' });
-            resolve(blob);
+            // MediaRecorder doesn't include duration header - this liberary fix that and add that to the blob:
+            fixWebmDuration(blob, mediaDuration, (fixedBlob) => {
+                resolve(fixedBlob);
+            });
         };
 
         console.log('start recording');
         mediaRecorder.start(); // start recording
+        
         // const source = audioCtx.createBufferSource();
         // source.buffer = audioBuffer;
         // source.connect(mediaRecorder);
         source.start(); // start stream
+        startRecordTime = Date.now();
         source.onended = () => {
             console.log('ended');
             mediaRecorder.stop();
@@ -66,7 +75,7 @@ const Edit = () => {
     // page settings:
     const [recordsInfo, setRecordsInfo] = useState(null); // [{name: 'name', recordName: 'record.mp3', audio: audioObj, waveform: waveformData}]
     const [recordIndex, setRecordIndex] = useState(-1);
-    const [reduceNoise, setReduceNoise] = useState(false);
+    const [algorithmOn, setAlgorithmOn] = useState(false);
     const [modalInfo, setModalInfo] = useState(null); // about, 
     const [darkMode, setDarkMode] = useState(false);
     // audio controls settings:
@@ -342,7 +351,7 @@ const Edit = () => {
         console.log('calculate FFT');
         let waveform = records[index].waveform;
         
-        setReduceNoise(true);
+        setAlgorithmOn(true);
         axiosServer.post('/editing/edit/calculateFFT', {signal: waveform},
         {headers: {'Authentication': authState.token}})
             .then(response => {
@@ -360,12 +369,12 @@ const Edit = () => {
                 // console.log('fft waveform: ', fftWaveform);
                 
                 updateRecord(index, {waveform: fftWaveform});
-                setReduceNoise(false);
+                setAlgorithmOn(false);
             })
             .catch(error => {
                 console.error("Couldn't get fft info from the server:\n", error);
                 notify("Error: Couldn't get FFT from the server", 'error');
-                setReduceNoise(false);
+                setAlgorithmOn(false);
             });
     // ignore warning
     // eslint-disable-next-line
@@ -374,7 +383,7 @@ const Edit = () => {
     const handleIfftPressed = useCallback((index) => {
         console.log('calculate IFFT');
         
-        setReduceNoise(true);
+        setAlgorithmOn(true);
         axiosServer.post('/editing/edit/calculateIFFT', {frequencies: fftRef.current},
         {headers: {'Authentication': authState.token}})
             .then(response => {
@@ -395,12 +404,12 @@ const Edit = () => {
                 source.start();
                 
                 updateRecord(index, {waveform: signal});
-                setReduceNoise(false);
+                setAlgorithmOn(false);
             })
             .catch(error => {
                 console.log("Couldn't get dtf info from the server:\n", error);
                 notify("Error: Couldn't get IFFT from the server", 'error');
-                setReduceNoise(false);
+                setAlgorithmOn(false);
             });
     // ignore warning
     // eslint-disable-next-line
@@ -423,7 +432,7 @@ const Edit = () => {
         
         console.log('slider domain: ', domain);
         
-        setReduceNoise(true);
+        setAlgorithmOn(true);
         axiosServer.post('/editing/edit/removeNoise',
             {
                 signal: waveform,
@@ -457,24 +466,24 @@ const Edit = () => {
                         urlList.splice(urlList.indexOf(audio.src), 1, newUrl); // replace the old url
                         URL.revokeObjectURL(audio.src);
                         audio.src = newUrl;
-                        setReduceNoise(false);
+                        setAlgorithmOn(false);
                     })
                     .catch(error => {
                         console.error("Errro - couldn't make a blob: ", error);
-                        setReduceNoise(false);
+                        setAlgorithmOn(false);
                     });
                 
                 const source = audioCtx.createBufferSource();
                 source.buffer = audioBuffer;
                 source.connect(audioCtx.destination);
                 source.start();
-                setReduceNoise(false);
+                setAlgorithmOn(false);
                 updateRecord(index, {waveform: signal});
             })
             .catch(error => {
                 console.error("Error: couldn't remove the noise:\n", error);
                 notify("Error: Couldn't remove the noise", 'error');
-                setReduceNoise(false);
+                setAlgorithmOn(false);
             });
     // ignore warning
     // eslint-disable-next-line
@@ -509,8 +518,9 @@ const Edit = () => {
                 <AudioWaveform audio={recordsInfo[recordIndex]} range={range} changeRange={setRange} />
                 <div style={{display: 'flex', flexDirection: 'row', gap: '5px'}}>
                     {
-                        !reduceNoise ?
+                        !algorithmOn ?
                         <>
+                            {currentAudioRef.current ? <a style={{position: ''}} href={currentAudioRef.current.src} download ><Download style={{height: '100%'}} /></a> : null}
                             <button onClick={() => {handleFftPressed(recordsInfo, recordIndex)}}>calculate fft</button>
                             <button onClick={() => {handleIfftPressed(recordIndex)}}>calculate ifft</button>
                             <button onClick={() => {handleReduceNoise(recordsInfo, recordIndex)}}>reduce noise</button>

@@ -61,8 +61,8 @@ const Registration = () => {
     const dispatch = useDispatch();
     const navigate = useNavigate();
     
-    const formSubmitted = useCallback((inputs) => {
-        // event.preventDefault();
+    const formSubmitted = useCallback((event, inputs) => {
+        event.preventDefault();
         
         // checking validation
         for(let inputObj of inputs){
@@ -118,15 +118,15 @@ const Registration = () => {
         content = <CircularProgress />;
     }else {
         content = <>
-            <form className={classes.logInForm}>
+            <form onSubmit={(event) => {formSubmitted(event, inputArray)}} className={classes.logInForm}>
                 <h2>log in</h2>
                 <InputList inputArray={inputArray}
                     setValue={(index, value) => {changeValue(setInputarray, index, value)}} />
                 <p style={{color: 'red'}}>{errorMessage}</p>
+                <Box>
+                    <Button type='submit' variant='contained' color='success'>log in</Button>
+                </Box>
             </form>
-            <Box sx={{marginTop: '15px'}}>
-                <Button variant='contained' color='success' onClick={(event) => {formSubmitted(inputArray)}}>log in</Button>
-            </Box>
             <p>don't have a user yet? <Link to='/sign-up' style={{textDecoration: 'none', color: 'blue'}}>sign up</Link></p>
         </>
     }

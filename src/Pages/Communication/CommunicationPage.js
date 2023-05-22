@@ -5,6 +5,7 @@ import { useSelector } from 'react-redux';
 import { Navigate } from 'react-router-dom';
 import { CircularProgress, IconButton } from '@mui/material';
 import { Mic, RadioButtonChecked, Download, Upload, CheckCircle } from '@mui/icons-material';
+import fixWebmDuration from "fix-webm-duration";
 
 import RtcClient from '../../clients/WebRtcClient/webrtcClient';
 import axiosServer from '../../clients/axios/axiosClient';
@@ -79,6 +80,8 @@ const Communication = () => {
     
     // to start communication
     useEffect(() => {
+        let unMounted = false;
+        
         if(!authState.userId || !authState.token) {
             return;
         }
@@ -99,6 +102,13 @@ const Communication = () => {
         if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
             navigator.mediaDevices.getUserMedia({video: false, audio: true})
                 .then(stream => {
+                    if(unMounted){
+                        stream.getTracks().forEach(track => {
+                            track.stop();
+                        });
+                        return;
+                    }
+                    
                     setError(null);
                     
                     localStream = stream;
@@ -270,17 +280,24 @@ const Communication = () => {
         }
         
         return () => {
-            client.disconnect();
+            unMounted = true;
+            
+            if(client) {
+                client.disconnect();
+            }
             
             // disabling my tracks
             if(localStream) {
+                console.log('closing local stream');
                 localStream.getTracks().forEach(track => {
                     track.stop();
                 });
             }
             
             // close all streams - including noise audio
-            audioContext.close();
+            if(audioContext) {
+                audioContext.close();
+            }
             
             // delete blob's urls
             console.log('delete all urls');
@@ -311,10 +328,12 @@ const Communication = () => {
             const mixedTracks = recordStreamDest.stream.getTracks()[0];
             const stream = new MediaStream([mixedTracks]);
             mediaRecorder = new MediaRecorder(stream);
+            let startRecordTime;
             
             let chunks = []; // saves the data from the recorder
             console.log('start recording');
             mediaRecorder.start();
+            startRecordTime = Date.now();
             setRecEnabled(true);
             console.log('state: ' + mediaRecorder.state);
             
@@ -324,14 +343,19 @@ const Communication = () => {
             };
             
             mediaRecorder.onstop = (e) => {
+                const mediaDuration = Date.now() - startRecordTime;
                 console.log('recording stopped, chunks: ', chunks);
                 const blob = new Blob(chunks, {type: "audio/ogg; codecs=opus"}); // audio/ogg
                 chunks = []; // initialing the chunks again
-                const audioURL = URL.createObjectURL(blob); // converting blob into URL
-                // console.log('record url: ', audioURL);
-                URL.revokeObjectURL(recordUrl); // delete previous url
-                setRecordUrl(audioURL);
-                // window.open(audioURL);
+                
+                // MediaRecorder doesn't include duration header - this liberary fix that and add that to the blob:
+                fixWebmDuration(blob, mediaDuration, (fixedBlob) => {
+                    const audioURL = URL.createObjectURL(fixedBlob); // converting blob into URL
+                    // console.log('record url: ', audioURL);
+                    URL.revokeObjectURL(recordUrl); // delete previous url
+                    setRecordUrl(audioURL);
+                    // window.open(audioURL);
+                });
             }
         }else { // stop recording
             if(mediaRecorder) {
@@ -515,7 +539,7 @@ const Communication = () => {
     if(recordUrl) {
         recordControls = <>
             <audio src={recordUrl} type="audio/ogg" controls />
-            <a href={recordUrl} download ><Download style={{height: '100%'}} /></a>
+            <a href={recordUrl} download ><Download style={{height: '100%', color: 'blue'}} /></a>
             {
                 authState.admin ?
                     !recordSent ?

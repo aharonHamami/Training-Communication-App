@@ -38,6 +38,11 @@ export default class RtcClient {
         });
     }
 
+    /**
+     * listen to an event
+     * @param {String} eventName - event name that will be callen on emit
+     * @param {Function} callback - callback function
+     */
     on(eventName, callback) {
         if (!this.#listeners[eventName]) {
             this.#listeners[eventName] = [];
@@ -45,6 +50,11 @@ export default class RtcClient {
         this.#listeners[eventName].push(callback);
     }
 
+    /**
+     * emit an event
+     * @param {String} eventName - event name to emit
+     * @param  {...any} args - arguments to pass to the callback
+     */
     emit(eventName, ...args) {
         if (this.#listeners[eventName]) {
             this.#listeners[eventName].forEach(callback => {
@@ -123,6 +133,9 @@ export default class RtcClient {
         });
     }
     
+    /**
+     * disconnect from the signalling server and from all the peers
+     */
     async disconnect() {
         console.log('disconnect from the server');
         this.#socket.disconnect();
@@ -181,7 +194,11 @@ export default class RtcClient {
         this.#usersPeerMap.push({id: otherUserId, peerConnection: peerConnection, stream: remoteStream});
     }
     
-    // can only be called after creating peer connection
+    /**
+     * send WebRTC offer to a specific peer
+     * this method can only be called after creating peer connection
+     * @param {String} otherUserId - user's peer id
+     */
     async #sendOffer(otherUserId) {
         const peerConnection = this.#usersPeerMap.find(user => user.id === otherUserId).peerConnection;
         
@@ -193,7 +210,11 @@ export default class RtcClient {
         this.#socket.emit('send-message', otherUserId, {type: "offer", offer: offer});
     }
     
-    // add the offer and send an answer
+    /**
+     * Add the given WebRTC offer and send a WebRTC answer to the peer
+     * @param {String} otherUserId - user's peer id
+     * @param {*} offer - WebRTC offer from the peer
+     */
     async #sendAnswer(otherUserId, offer) {
         const peerConnection = this.#usersPeerMap.find(user => user.id === otherUserId).peerConnection;
         
@@ -207,6 +228,11 @@ export default class RtcClient {
         this.#socket.emit('send-message', otherUserId, {type: "answer", answer: answer});
     }
     
+    /**
+     * Add the given WebRTC offer
+     * @param {String} otherUserId - user's peer id
+     * @param {*} answer - WebRTC answer from the peer
+     */
     async #addAnswer(otherUserId, answer) {
         const peerConnection = this.#usersPeerMap.find(user => user.id === otherUserId).peerConnection;
         
@@ -215,6 +241,11 @@ export default class RtcClient {
         }
     }
     
+    /**
+     * add a WebRTC ice candidate
+     * @param {String} otherUserId - user's peer id
+     * @param {*} candidate - a WebRTC ice candidate
+     */
     async #addIceCandidate(otherUserId, candidate) {
         const otherUser = this.#usersPeerMap.find(user => user.id === otherUserId);
         

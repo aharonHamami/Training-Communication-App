@@ -17,8 +17,10 @@ const InputList = (props) => {
         
         switch (obj.type) {
             case 'text-field':
+            case 'password':
                 return <TextField
                             key={'input_'+index}
+                            type={obj.type} name={obj.name}
                             label={obj.label} value={obj.value} error={!isValid}
                             onChange={event => {props.setValue(index, event.target.value)}} variant="outlined"
                             />
@@ -26,13 +28,6 @@ const InputList = (props) => {
                 //             key={'input_'+index}
                 //             pattern={obj.validation.pattern}
                 //             />
-            case 'password':
-                return <TextField
-                            key={'input_'+index}
-                            type='password'
-                            label={obj.label} value={obj.value} error={!isValid}
-                            onChange={event => {props.setValue(index, event.target.value)}} variant="outlined"
-                            />
             case 'select':
                 return <Box key={'input_'+index} sx={{textAlign: 'left'}}>
                     <FormControl fullWidth error={!isValid}>

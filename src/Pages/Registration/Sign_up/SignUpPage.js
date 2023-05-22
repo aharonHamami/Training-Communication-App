@@ -12,6 +12,21 @@ import InfoCard from "../../../ComponentsUI/InfoCard/InfoCard";
 import axiosServer from '../../../clients/axios/axiosClient';
 import { connect } from '../../../store/slices/authSlice';
 
+const changeValue = (setInputs, index, value) => {
+    setInputs(state => {
+        const newArray = [...state];
+        newArray[index] = {
+            ...newArray[index],
+            value: value,
+            validation: {
+                ...newArray[index].validation,
+                isValid: state[index].validation.pattern.test(value)
+            }
+        }
+        return newArray; 
+    });
+};
+
 const Registration = () => {
     
     const [inputArray, setInputArray] = useState([
@@ -57,23 +72,8 @@ const Registration = () => {
     
     const navigate = useNavigate();
     
-    const changeValue = useCallback((inputs, setInputs, index, value) => {
-        const valueValidation = inputs[index].validation.pattern.test(value);
-        
-        const newArray = [...inputs];
-        newArray[index] = {
-            ...newArray[index],
-            value: value,
-            validation: {
-                ...newArray[index].validation,
-                isValid: valueValidation
-            }
-        }
-        setInputs(newArray);
-    }, []);
-    
-    const formSubmitted = useCallback((inputs) => {
-        // event.preventDefault();
+    const formSubmitted = useCallback((event, inputs) => {
+        event.preventDefault();
         
         // checking validation
         for(let inputObj of inputs){
@@ -130,14 +130,15 @@ const Registration = () => {
         content = <CircularProgress />;
     }else {
         content = <>
-            <form className={classes.logInForm}>
+            <form onSubmit={(event) => {formSubmitted(event, inputArray)}} className={classes.logInForm}>
                 <h2>sign up</h2>
-                <InputList inputArray={inputArray} setValue={(index, value) => {changeValue(inputArray, setInputArray, index, value)}} />
+                <InputList inputArray={inputArray}
+                    setValue={(index, value) => {changeValue(setInputArray, index, value)}} />
                 <p style={{color: 'red'}}>{errorMessage}</p>
+                <Box>
+                    <Button type='submit' variant='contained' color='success'>sign up</Button>
+                </Box>
             </form>
-            <Box sx={{marginTop: '15px'}}>
-                <Button variant='contained' color='success' onClick={(event) => {formSubmitted(inputArray)}}>sign up</Button>
-            </Box>
         </>;
     }
     

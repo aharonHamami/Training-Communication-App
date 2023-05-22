@@ -4,12 +4,12 @@ import SideBarTitle from "./SideBarTitle/SideBarTitle";
 
 // props = {title, size, children}
 const bar = (props) => {
-    return (
+    return <>
+        <SideBarTitle text={props.title} action={props.titleAction} />
         <div className={classes.sidePanel} style={{flexGrow: props.size}}>
-            <SideBarTitle text={props.title} action={props.titleAction} />
             {props.children}
         </div>
-    );
+    </>;
 }
 
 export default bar;

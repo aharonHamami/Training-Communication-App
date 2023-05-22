@@ -10,34 +10,49 @@ import { useState, createContext, useContext } from 'react';
 const NotificationContext = createContext(); // global reference
 
 export const NotificationProvider = ({ children }) => {
-  const [message, setMessage] = useState();
   const [visible, setVisible] = useState(false);
-  const [type, setType] = useState('');
-  const [logo, setLogo] = useState(null);
+  const [info, setInfo] = useState({
+    message: '',
+    type: '',
+    logo: null
+  });
 
   const sendNotification = (message, currentType) => {
-    setMessage(message);
-    
     switch(currentType) {
       case 'error':
-        setType(classes.error);
-        setLogo(errorLogo);
+        setInfo({
+          message: message,
+          type: classes.error,
+          logo: errorLogo
+        });
         break;
       case 'success':
-        setType(classes.success);
-        setLogo(successLogo);
+        setInfo({
+          message: message,
+          type: classes.success,
+          logo: successLogo
+        });
         break;
       case 'info':
-        setType(classes.info);
-        setLogo(infoLogo);
+        setInfo({
+          message: message,
+          type: classes.info,
+          logo: infoLogo
+        });
         break;
       case 'warning':
-        setType(classes.warning);
-        setLogo(warningLogo);
+        setInfo({
+          message: message,
+          type: classes.warning,
+          logo: warningLogo
+        });
         break;
       default: 
-        setType('');
-        setLogo(null);
+        setInfo({
+          message: message,
+          type: '',
+          logo: null
+        });
         break;
     }
     
@@ -49,13 +64,13 @@ export const NotificationProvider = ({ children }) => {
 
   return (
     <NotificationContext.Provider value={sendNotification}>
-        <div className={[classes.modal, type].join(' ')}
+        <div className={[classes.modal, info.type].join(' ')}
             style={{
                 transform: visible ? 'translateY(0)' : 'translateY(-200%)',
                 opacity: visible ? '1' : '0'
             }}>
-            {logo ? <img src={logo} alt='logo' /> : null}
-            {message}
+            {info.logo ? <img src={info.logo} alt='logo' /> : null}
+            {info.message}
         </div>
         {children}
     </NotificationContext.Provider>
