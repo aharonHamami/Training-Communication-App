@@ -18,29 +18,29 @@ const Page = () => {
         <div className={classes.mainWindow}>
             <div className={classes.leftWindow}>
                 <h1>{authState.name ? `Welcome, ${authState.name}` : "Home Page"}</h1>
-                <h2>choose what you want to do:</h2>
+                <h2>Choose what you want to do:</h2>
                 <div className={classes.contentBox}>
-                    <Link to='/sign-up'><button>sign up</button></Link>
-                    <Link to="/log-in"><button>log in</button></Link>
+                    <Link to='/sign-up'><button>Sign Up</button></Link>
+                    <Link to="/log-in"><button>Log In</button></Link>
                     {
                         authState.token ?
                         <>
-                            <Link to="/communication"><button>start communication</button></Link>
+                            <Link to="/communication"><button>Start Communication</button></Link>
                         </>
                         : null
                     }
                     {
                         authState.admin ?
                         <>
-                            <Link to="/edit"><button>edit recordings</button></Link>
-                            <Link to="/users-management"><button>manage users</button></Link>
+                            <Link to="/edit"><button>Edit Recordings</button></Link>
+                            <Link to="/users-management"><button>Manage Users</button></Link>
                         </>
                         : null
                     }
                 </div>
                 {
                     authState.token ?
-                    <p style={{color: 'red', cursor: 'pointer'}} onClick={handleLogOut}>log out</p>
+                    <p style={{color: 'red', cursor: 'pointer'}} onClick={handleLogOut}>Log Out</p>
                     : null
                 }
             </div>

@@ -38,6 +38,7 @@ function App() {
         notify("You are unauthorized, returning back to home page", 'error');
         dispatch(logOut());
         navigate('/');
+        console.log('return null intercepted');
       }
       return Promise.reject(error);
     });

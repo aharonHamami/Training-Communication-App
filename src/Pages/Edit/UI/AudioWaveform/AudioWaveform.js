@@ -54,6 +54,7 @@ const Waveform = (props) => {
         />
         <Slider 
             value={props.range}
+            step={0.1}
             onChange={handleRangeChange}
             valueLabelDisplay="auto"
             valueLabelFormat={getValueText}

@@ -1,6 +1,7 @@
 .registerPage {
     display: flex;
-    height: 100vh;
+    height: fit-content;
+    min-height: 100vh;
     width: 100%;
     background-color: #dfe9f6;
     box-sizing: border-box;

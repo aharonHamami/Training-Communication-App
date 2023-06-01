@@ -94,10 +94,10 @@ const Edit = () => {
         {
             label: "File",
             options: [
-                {
-                    title: 'import file',
-                    action: null
-                },
+                // {
+                //     title: 'import file',
+                //     action: null
+                // },
                 {
                     title: 'upload files',
                     action: () => {
@@ -217,7 +217,9 @@ const Edit = () => {
             })
             .catch(error => {
                 console.error("Error: couldn't get record names from server: \n", error);
-                notify("Error: couldn't get record names from server", 'error');
+                if(error.response.status !== 401) { // Unauthorized
+                    notify("Error: couldn't get record names from server", 'error');
+                }
             });
         
         return () => {
@@ -286,8 +288,10 @@ const Edit = () => {
                 });
             })
             .catch(error => {
+                notify("Error: couldn't get audio properly");
                 console.log("couldn't get audio properly: ", error);
             })
+    // eslint-disable-next-line
     }, [authState.token, updateRecord]);
     
     const handleRecordPressed = useCallback((records, index) => {
@@ -384,11 +388,12 @@ const Edit = () => {
         console.log('calculate IFFT');
         
         setAlgorithmOn(true);
+        // need to send the original FFT with the angles - not the waveform that represent the magnitude
         axiosServer.post('/editing/edit/calculateIFFT', {frequencies: fftRef.current},
         {headers: {'Authentication': authState.token}})
             .then(response => {
                 console.log('server response: ', response.data);
-                let signal = response.data.IDFT.map(cmplxNum => cmplxNum.re);
+                let signal = response.data.IFFT.map(cmplxNum => cmplxNum.re);
                 
                 // playing the signal
                 const myArrayBuffer = audioCtx.createBuffer(1, signal.length, audioCtx.sampleRate);
@@ -521,9 +526,9 @@ const Edit = () => {
                         !algorithmOn ?
                         <>
                             {currentAudioRef.current ? <a style={{position: ''}} href={currentAudioRef.current.src} download ><Download style={{height: '100%'}} /></a> : null}
-                            <button onClick={() => {handleFftPressed(recordsInfo, recordIndex)}}>calculate fft</button>
-                            <button onClick={() => {handleIfftPressed(recordIndex)}}>calculate ifft</button>
-                            <button onClick={() => {handleReduceNoise(recordsInfo, recordIndex)}}>reduce noise</button>
+                            <button onClick={() => {handleFftPressed(recordsInfo, recordIndex)}}>Calculate FFT</button>
+                            <button onClick={() => {handleIfftPressed(recordIndex)}}>Calculate IFFT</button>
+                            <button onClick={() => {handleReduceNoise(recordsInfo, recordIndex)}}>Reduce noise</button>
                         </>
                         : <div style={{marginTop: '10px'}}>{dotFlasingAnimation}</div>
                     }

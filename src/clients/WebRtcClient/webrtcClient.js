@@ -36,6 +36,10 @@ export default class RtcClient {
         this.#socket.on("connect", () => {
             console.log("connected to server with socket.io");
         });
+        
+        // this.#socket.on("connect_error", (error) => {
+        //     console.warn('conmnect error: ', error);
+        // });
     }
 
     /**

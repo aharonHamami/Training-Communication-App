@@ -119,7 +119,7 @@ const Registration = () => {
     }else {
         content = <>
             <form onSubmit={(event) => {formSubmitted(event, inputArray)}} className={classes.logInForm}>
-                <h2>log in</h2>
+                <h2>Log In</h2>
                 <InputList inputArray={inputArray}
                     setValue={(index, value) => {changeValue(setInputarray, index, value)}} />
                 <p style={{color: 'red'}}>{errorMessage}</p>

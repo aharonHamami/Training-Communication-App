@@ -245,6 +245,7 @@ const Communication = () => {
                 })
                 .catch(error => {
                     console.log("error: couldn't get access to user media\n", error);
+                    console.log(error);
                     setError("error: couldn't get access to user media");
                 });
         } else {
@@ -275,7 +276,9 @@ const Communication = () => {
                 })
                 .catch(error => {
                     console.error('Server error: ', error);
-                    notify("Error: couldn't get the audio from the server", 'error');
+                    if(error.response.status !== 401){ // if this is not due to lack of authentication
+                        notify("Error: couldn't get the audio from the server", 'error');
+                    }
                 });
         }
         
@@ -513,7 +516,7 @@ const Communication = () => {
                 })
                 .catch(error => {
                     console.error("Couldn't send the files: ", error);
-                    notify("Error: couldn't upload the new noises", 'error');
+                    notify("Error: couldn't upload the noises", 'error');
                 });
         }
         

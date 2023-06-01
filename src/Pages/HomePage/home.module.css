@@ -3,7 +3,8 @@
     flex-direction: row;
     align-items: left;
     text-align: left;
-    height: 100vh;
+    height: fit-content;
+    min-height: 100vh;
     background-color: #dfe9f6;
     box-sizing: border-box;
 }
